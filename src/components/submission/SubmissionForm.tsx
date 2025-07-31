@@ -4,34 +4,37 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { submitNewEntrySuggestion, fetchAllTags } from '@/app/submit/actions';
-import type { Tag } from '@/lib/types';
+import { submitNewEntrySuggestion, fetchAllTags, searchEntriesByName } from '@/app/submit/actions';
+import type { Tag, NewEntrySuggestionData, NewUserSubmission } from '@/lib/types';
+
+import { MentionTextArea } from '@/components/shared/MentionTextArea';
 
 export function SubmissionForm() {
   const { toast } = useToast();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [aliases, setAliases] = useState('');
-  const [type, setType] = useState<'exicon' | 'lexicon'>('exicon');
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]); // Store tag IDs
+  const [entryType, setEntryType] = useState<'exicon' | 'lexicon'>('exicon');
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [videoLink, setVideoLink] = useState('');
   const [submitterName, setSubmitterName] = useState('');
   const [submitterEmail, setSubmitterEmail] = useState('');
-  
+  const [mentionedEntryIds, setMentionedEntryIds] = useState<string[]>([]);
+
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [isLoadingTags, setIsLoadingTags] = useState(true);
+
 
   useEffect(() => {
     const loadTags = async () => {
       try {
         setIsLoadingTags(true);
         const tags = await fetchAllTags();
-        setAvailableTags(tags.sort((a,b) => a.name.localeCompare(b.name)));
+        setAvailableTags(tags.sort((a, b) => a.name.localeCompare(b.name)));
       } catch (error) {
         console.error("Failed to load tags for submission form:", error);
         toast({ title: "Error loading tags", description: "Could not load tags for the form.", variant: "destructive" });
@@ -47,52 +50,68 @@ export function SubmissionForm() {
     setName('');
     setDescription('');
     setAliases('');
-    setType('exicon');
+    setEntryType('exicon');
     setSelectedTagIds([]);
     setVideoLink('');
     setSubmitterName('');
     setSubmitterEmail('');
+    setMentionedEntryIds([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !description) {
-        toast({
-            title: "Missing Information",
-            description: "Please provide at least a name and description.",
-            variant: "destructive",
-        });
-        return;
+      toast({
+        title: "Missing Information",
+        description: "Please provide at least a name and description.",
+        variant: "destructive",
+      });
+      return;
     }
 
-    const formDataForAction = {
+    const newEntryData: NewEntrySuggestionData = {
       name,
       description,
       aliases: aliases.split(',').map(a => a.trim()).filter(Boolean),
-      type,
-      // For 'new' submission, we send tag *names* or *IDs*. The backend action/API should resolve these.
-      // Here, we'll send selected tag IDs, and expect the backend to use them (or names if IDs are not stable for new tags from user)
-      tags: type === 'exicon' ? selectedTagIds.map(id => availableTags.find(t => t.id === id)?.name).filter(Boolean) as string[] : [],
-      videoLink: type === 'exicon' ? videoLink : undefined,
+      entryType,
+      tags: entryType === 'exicon'
+        ? selectedTagIds.map(id => availableTags.find(t => t.id === id)?.name).filter(Boolean) as string[]
+        : [],
+      videoLink: entryType === 'exicon' && videoLink ? videoLink : undefined,
+
+      mentionedEntries: mentionedEntryIds,
+    };
+
+    const submissionPayload: NewUserSubmission<NewEntrySuggestionData> = {
+      submissionType: 'new',
+      data: newEntryData,
       submitterName: submitterName || undefined,
       submitterEmail: submitterEmail || undefined,
     };
-    
+
     try {
-      await submitNewEntrySuggestion(formDataForAction);
+      await submitNewEntrySuggestion(submissionPayload);
       toast({
-          title: "Submission Received",
-          description: `Thank you, ${submitterName || 'Anonymous'}! Your submission for "${name}" has been sent for review.`,
+        title: "Submission Received",
+        description: `Thank you, ${submitterName || 'Anonymous'}! Your submission for "${name}" has been sent for review.`,
       });
       resetForm();
     } catch (error) {
       console.error("Error submitting new entry:", error);
-      toast({ title: "Submission Failed", description: "Could not submit your entry. Please try again.", variant: "destructive"});
+      toast({ title: "Submission Failed", description: "Could not submit your entry. Please try again.", variant: "destructive" });
     }
   };
 
   const handleTagChange = (tagId: string) => {
-    setSelectedTagIds(prev => prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]);
+    setSelectedTagIds(prev => {
+      const newSelectedTags = prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId];
+      return newSelectedTags;
+    });
+  };
+  const handleMentionsChange = (mentions: { id: string; name: string }[]) => {
+    const newMentionIds = mentions.map(mention => mention.id);
+    setMentionedEntryIds(newMentionIds);
+    console.log('SubmissionForm: Updated mentionedEntryIds:', newMentionIds);
   };
 
   return (
@@ -115,24 +134,33 @@ export function SubmissionForm() {
               <Input id="submitterEmail" type="email" value={submitterEmail} onChange={(e) => setSubmitterEmail(e.target.value)} />
             </div>
           </div>
-          
-          <hr/>
+
+          <hr />
 
           <div className="space-y-2">
             <Label htmlFor="name">Entry Name <span className="text-destructive">*</span></Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="description">Description <span className="text-destructive">*</span></Label>
-            <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} required rows={5} />
+            <MentionTextArea
+              value={description}
+              onChange={setDescription}
+              searchEntries={searchEntriesByName}
+              placeholder="Enter description and type @ to mention entries..."
+              rows={5}
+              onMentionsChange={handleMentionsChange}
+            />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="aliases">Aliases (comma-separated)</Label>
             <Input id="aliases" value={aliases} onChange={(e) => setAliases(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>Entry Type <span className="text-destructive">*</span></Label>
-            <RadioGroup value={type} onValueChange={(newVal) => setType(newVal as 'exicon' | 'lexicon')} className="flex space-x-4 pt-1">
+            <RadioGroup value={entryType} onValueChange={(newVal) => setEntryType(newVal as 'exicon' | 'lexicon')} className="flex space-x-4 pt-1">
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="exicon" id="type-exicon-submit" />
                 <Label htmlFor="type-exicon-submit" className="font-normal">Exicon (Exercise)</Label>
@@ -144,7 +172,7 @@ export function SubmissionForm() {
             </RadioGroup>
           </div>
 
-          {type === 'exicon' && (
+          {entryType === 'exicon' && (
             <>
               <div className="space-y-2">
                 <Label>Tags (for Exicon)</Label>
@@ -165,7 +193,7 @@ export function SubmissionForm() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="videoLink">Video Link (for Exicon, optional)</Label>
-                <Input id="videoLink" type="url" value={videoLink} onChange={(e) => setVideoLink(e.target.value)} placeholder="https://youtube.com/watch?v=..."/>
+                <Input id="videoLink" type="url" value={videoLink} onChange={(e) => setVideoLink(e.target.value)} placeholder="https://youtube.com/watch?v=..." />
               </div>
             </>
           )}

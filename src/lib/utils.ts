@@ -1,44 +1,93 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+// src/lib/utils.ts - Modify getYouTubeEmbedUrl
+
+import type { AnyEntry, EntryWithReferences } from './types';
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
+}
+/**
+ * Formats a description string, identifies mentions (@Entry Name),
+ * and generates HTML with markup for hover effects.
+ *
+ * @param description The description string.
+ * @param allEntries A list of all available entries to resolve mentions against.
+ * @returns A promise that resolves to the HTML string with formatted mentions.
+ */
+export async function formatDescriptionWithMentionsHTML(
+  description: string,
+  allEntries: AnyEntry[] // Use AnyEntry as we only need name and ID for linking
+): Promise<string> {
+  if (!description) {
+    return '';
+  }
+
+  const mentionRegex = /@([a-zA-Z0-9s_.-]+)(?=[s,.!?;:]|$)/g;
+  let lastIndex = 0;
+  let html = '';
+  let match;
+
+  const entryMap = new Map<string, AnyEntry>();
+  // Create a map for quick lookup, case-insensitive name
+  for (const entry of allEntries) {
+      entryMap.set(entry.name.toLowerCase(), entry);
+       // Also add aliases to the map
+      if (entry.aliases) {
+         for (const alias of entry.aliases) {
+            const aliasName = typeof alias === 'string' ? alias : alias.name;
+            if (aliasName) {
+                 entryMap.set(aliasName.toLowerCase(), entry);
+            }
+         }
+      }
+  }
+
+
+  while ((match = mentionRegex.exec(description)) !== null) {
+    const before = description.substring(lastIndex, match.index);
+    html += before;
+
+    const mentionName = match[1].trim();
+    const matchedEntry = entryMap.get(mentionName.toLowerCase());
+
+    if (matchedEntry) {
+      // Generate HTML for a resolved mention with data attributes for hover
+      // Using data attributes as a simple way to pass info for a client-side listener
+      html += `<span
+                 class="entry-mention text-blue-700 underline hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-900 cursor-pointer"
+                 data-entry-id="${matchedEntry.id}"
+                 data-entry-name="${matchedEntry.name}"
+                 data-entry-description="${matchedEntry.description.replace(/"/g, '&quot;')}" // Escape quotes for HTML attribute
+                 data-entry-type="${matchedEntry.type}"
+               >
+                 ${matchedEntry.name}
+               </span>`;
+    } else {
+      // Keep the @ sign and potentially style unresolved mentions
+      html += `<span class="entry-mention text-yellow-700 dark:text-yellow-300 cursor-help" title="Could not find entry for &quot;${mentionName}&quot;">
+                 @${mentionName}
+               </span>`;
+    }
+
+    lastIndex = mentionRegex.lastIndex;
+  }
+
+  html += description.substring(lastIndex);
+
+  return html;
 }
 
-export function getYouTubeEmbedUrl(url: string): string | null {
+// Use RegExp object for youtubeRegex
+export const getYouTubeEmbedUrl = (url: string): string | null => {
   if (!url) return null;
 
-  let videoId = null;
-  
-  // Standard watch URL: https://www.youtube.com/watch?v=VIDEO_ID
-  const watchMatch = url.match(/watch\?v=([^&]+)/);
-  if (watchMatch) {
-    videoId = watchMatch[1];
-  } else {
-    // Shortened URL: https://youtu.be/VIDEO_ID
-    const shortMatch = url.match(/youtu\.be\/([^?]+)/);
-    if (shortMatch) {
-      videoId = shortMatch[1];
-    } else {
-      // Embed URL: https://www.youtube.com/embed/VIDEO_ID
-      const embedMatch = url.match(/youtube\.com\/embed\/([^?]+)/);
-      if (embedMatch) {
-        videoId = embedMatch[1]; // Already in embed format, but we extract ID to standardize
-      }
-    }
+  const youtubeRegex = new RegExp('^(?:https?://)?(?:www\.)?(?:youtube\.com|youtu\.be)/(?:watch\?v=|embed\/|v\/)([a-zA-Z0-9_-]+)');
+  const match = url.match(youtubeRegex);
+
+  if (match && match[1]) {
+    return `https://www.youtube.com/embed/${match[1]}`;
   }
 
-  if (videoId) {
-    return `https://www.youtube.com/embed/${videoId}`;
-  }
-
-  // Fallback for other potential (but less common) formats or if no match
-  // This part can be expanded if more URL types need to be supported
-  // For now, if it's not a known YouTube format, return null or the original URL if it's already an embed link
-  if (url.includes('youtube.com/embed/')) {
-    return url; // Assume it's already a valid embed URL
-  }
-  
-  console.warn(`Could not parse YouTube video ID from URL: ${url}`);
-  return null; // Or return the original URL if you want to try embedding it directly
-}
+  return null;
+};

@@ -8,7 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import type { Tag, ExiconEntry, AnyEntry } from '@/lib/types';
+import type { Tag, ExiconEntry, AnyEntry, ReferencedEntry, LexiconEntry } from '@/lib/types';
+import { MentionTextArea } from '@/components/shared/MentionTextArea';
+import { searchEntriesByName } from '@/app/submit/actions';
 
 interface EntryFormProps {
   entryToEdit?: AnyEntry;
@@ -23,6 +25,7 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags }: EntryFormProps
   const [type, setType] = useState<'exicon' | 'lexicon'>('exicon');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [videoLink, setVideoLink] = useState('');
+  const [references, setReferences] = useState<ReferencedEntry[]>([]);
 
   useEffect(() => {
     if (entryToEdit) {
@@ -36,7 +39,6 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags }: EntryFormProps
       );
       setVideoLink(isExicon ? (entryToEdit as ExiconEntry).videoLink || '' : '');
 
-      // Safely convert aliases from string[] or { name: string }[] to unified format
       const formattedAliases = Array.isArray(entryToEdit.aliases)
         ? entryToEdit.aliases.map((alias, idx) => ({
             id:
@@ -48,6 +50,8 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags }: EntryFormProps
         : [];
 
       setAliases(formattedAliases);
+
+
     } else {
       setName('');
       setDescription('');
@@ -55,6 +59,7 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags }: EntryFormProps
       setSelectedTagIds([]);
       setVideoLink('');
       setAliases([]);
+      setReferences([]);
     }
   }, [entryToEdit]);
 
@@ -64,10 +69,11 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags }: EntryFormProps
     const commonData = {
       id:
         entryToEdit?.id ||
-        `${type}-${Date.now()}-${name.toLowerCase().replace(/\s+/g, '-')}`,
+        `${type}-${Date.now()}-${name.toLowerCase().replace(/s+/g, '-')}`,
       name,
       description,
       aliases: aliases.filter((alias) => alias.name.trim() !== ''),
+      references: references, // Include parsed references in the submission data
     };
 
     const entryData: AnyEntry =
@@ -79,11 +85,11 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags }: EntryFormProps
               .map((id) => allTags.find((tag) => tag.id === id))
               .filter((t): t is Tag => !!t),
             videoLink: videoLink || undefined,
-          }
+          } as ExiconEntry
         : {
             ...commonData,
             type: 'lexicon',
-          };
+          } as LexiconEntry;
 
     onFormSubmit(entryData);
   };
@@ -115,6 +121,27 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags }: EntryFormProps
     );
   };
 
+
+  const handleMentionsChange = (mentions: { id: string; name: string }[]) => {
+     const resolvedRefs = mentions.filter(m => m.id !== '').map(m => ({
+        id: m.id,
+        name: m.name,
+        description: (m as any).description || '',
+        type: (m as any).type || 'lexicon',
+     })) as ReferencedEntry[];
+
+
+    const newReferences = mentions.filter(m => m.id !== '').map(m => ({
+      id: m.id,
+      name: m.name,
+      description: (m as any).description || '',
+      type: (m as any).type || 'lexicon',
+    })) as ReferencedEntry[];
+
+    setReferences(newReferences);
+  };
+
+
   return (
     <Card className="w-full max-w-2xl mx-auto border-0 shadow-none">
       <form onSubmit={handleSubmit}>
@@ -130,18 +157,22 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags }: EntryFormProps
               required
             />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="description">
               Description <span className="text-destructive">*</span>
             </Label>
-            <Textarea
-              id="description"
+            <MentionTextArea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              required
+              onChange={setDescription}
+              onMentionsChange={handleMentionsChange}
+              placeholder="Enter description here. Use @ to mention other entries."
               rows={5}
+              searchEntries={searchEntriesByName}
             />
+ 
           </div>
+
           <div className="space-y-2">
             <Label>Aliases</Label>
             <div className="space-y-2">

@@ -1,11 +1,11 @@
-// src/components/shared/EntryCard.tsx
 'use client';
 
 import type { AnyEntry, ExiconEntry } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription } from '@/components/ui/dialog';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Pencil, Copy, ExternalLink, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -15,17 +15,214 @@ import { getYouTubeEmbedUrl } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface EntryCardProps {
-  entry: AnyEntry;
+  entry: AnyEntry & {
+    mentionedEntries?: string[];
+    resolvedMentionsData?: Record<string, AnyEntry>;
+  };
 }
 
 const MAX_DESC_LENGTH_PREVIEW = 150;
+
+
+const renderDescriptionWithMentions = (
+  description: string | undefined,
+  resolvedMentionsData?: Record<string, AnyEntry>,
+  colorVariant: 'default' | 'vibrant' = 'default'
+) => {
+  if (!description) return <span>No description available.</span>;
+
+  if (description.includes('Black Jack is in this')) {
+    console.log('Test-2 EntryCard resolvedMentionsData:', JSON.stringify(resolvedMentionsData, (key, value) => {
+      if (value && typeof value === 'object' && 'id' in value && 'name' in value) {
+        return { id: value.id, name: value.name, type: value.type };
+      }
+      return value;
+    }, 2));
+  }
+
+  const parts: (string | JSX.Element)[] = [];
+  
+
+  const mentionColors = colorVariant === 'vibrant'
+    ? [
+        'text-blue-600 hover:text-blue-700',
+        'text-purple-600 hover:text-purple-700',
+        'text-green-600 hover:text-green-700',
+        'text-orange-600 hover:text-orange-700',
+        'text-red-600 hover:text-red-700',
+        'text-teal-600 hover:text-teal-700',
+        'text-pink-600 hover:text-pink-700',
+        'text-indigo-600 hover:text-indigo-700'
+      ]
+    : [
+        'text-blue-500 hover:text-blue-600',
+        'text-purple-500 hover:text-purple-600',
+        'text-green-500 hover:text-green-600',
+        'text-orange-500 hover:text-orange-600',
+        'text-red-500 hover:text-red-600',
+        'text-teal-500 hover:text-teal-600'
+      ];
+
+  if (!resolvedMentionsData || Object.keys(resolvedMentionsData).length === 0) {
+    return <span>{description}</span>;
+  }
+
+  const mentionLookup: Array<{ 
+    name: string; 
+    entry: AnyEntry; 
+    priority: number;
+  }> = [];
+  
+  Object.values(resolvedMentionsData).forEach(entry => {
+    mentionLookup.push({ 
+      name: entry.name, 
+      entry, 
+      priority: entry.name.length 
+    });
+    
+
+    entry.aliases?.forEach(alias => {
+      mentionLookup.push({ 
+        name: alias.name, 
+        entry, 
+        priority: alias.name.length 
+      });
+    });
+  });
+
+  mentionLookup.sort((a, b) => b.priority - a.priority);
+
+  const mentions: Array<{
+    start: number;
+    end: number;
+    mentionText: string;
+    entry: AnyEntry;
+  }> = [];
+
+  mentionLookup.forEach(({ name, entry }) => {
+    const pattern = new RegExp(`@(${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(?=\\s|[,.!?;:]|$|\\n)`, 'gi');
+    let match;
+    
+    while ((match = pattern.exec(description)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+      
+
+      const isOverlapping = mentions.some(existing => 
+        (start >= existing.start && start < existing.end) ||
+        (end > existing.start && end <= existing.end) ||
+        (start < existing.start && end > existing.end)
+      );
+      
+      if (!isOverlapping) {
+        mentions.push({
+          start,
+          end,
+          mentionText: match[0],
+          entry
+        });
+      }
+    }
+  });
+
+
+  mentions.sort((a, b) => a.start - b.start);
+
+
+  let lastIndex = 0;
+  let mentionIndex = 0;
+
+  mentions.forEach(({ start, end, mentionText, entry }) => {
+
+    if (start > lastIndex) {
+      parts.push(description.substring(lastIndex, start));
+    }
+
+    const colorClass = mentionColors[mentionIndex % mentionColors.length];
+
+    parts.push(
+      <HoverCard key={`mention-${start}-${mentionIndex}`} openDelay={200} closeDelay={100}>
+        <HoverCardTrigger asChild>
+          <span
+            className={`${colorClass} underline hover:no-underline cursor-pointer font-medium transition-colors duration-200`}
+          >
+            {mentionText}
+          </span>
+        </HoverCardTrigger>
+        <HoverCardContent className="w-80 p-4" side="top" align="center">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-primary">{entry.name}</h4>
+              <Badge variant="outline" className="text-xs">
+                {entry.type === 'exicon' ? 'Exercise' : 'Term'}
+              </Badge>
+            </div>
+
+            {entry.aliases && entry.aliases.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Also: {entry.aliases
+                  .map(alias => typeof alias === 'string' ? alias : alias.name)
+                  .slice(0, 2)
+                  .join(', ')}
+                {entry.aliases.length > 2 && '...'}
+              </p>
+            )}
+
+            <p className="text-sm text-foreground leading-relaxed">
+              {entry.description
+                ? (() => {
+                    const cleanDesc = entry.description.replace(/<[^>]*>/g, '').replace(/@[A-Za-z0-9\s_.-]+/g, '[ref]');
+                    return cleanDesc.length > 120
+                      ? `${cleanDesc.substring(0, 120)}...`
+                      : cleanDesc;
+                  })()
+                : 'No description available.'}
+            </p>
+
+            {entry.type === 'exicon' && (entry as ExiconEntry).tags && (entry as ExiconEntry).tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-1">
+                {(entry as ExiconEntry).tags.slice(0, 3).map(tag => (
+                  <Badge key={tag.id} variant="secondary" className="text-xs px-1 py-0">
+                    {tag.name}
+                  </Badge>
+                ))}
+                {(entry as ExiconEntry).tags.length > 3 && (
+                  <span className="text-xs text-muted-foreground">+{(entry as ExiconEntry).tags.length - 3}</span>
+                )}
+              </div>
+            )}
+
+            <div className="pt-2 border-t">
+              <Link
+                href={entry.type === 'exicon' ? `/exicon/${entry.id}` : `/lexicon/${entry.id}`}
+                className="text-xs text-blue-500 hover:text-blue-600 hover:underline"
+              >
+                View full entry →
+              </Link>
+            </div>
+          </div>
+        </HoverCardContent>
+      </HoverCard>
+    );
+
+    mentionIndex++;
+    lastIndex = end;
+  });
+
+
+  if (lastIndex < description.length) {
+    parts.push(description.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : <span>{description}</span>;
+}
 
 export function EntryCard({ entry }: EntryCardProps) {
   const { toast } = useToast();
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSuggestEditFormOpen, setIsSuggestEditFormOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [previewHtml, setPreviewHtml] = useState(entry.linkedDescriptionHtml || entry.description);
+  const [previewDescriptionContent, setPreviewDescriptionContent] = useState('');
   const [showGradient, setShowGradient] = useState(false);
 
   useEffect(() => {
@@ -34,21 +231,22 @@ export function EntryCard({ entry }: EntryCardProps) {
 
   useEffect(() => {
     if (isClient) {
-      const baseDescription = entry.linkedDescriptionHtml || entry.description;
-      const textContent = baseDescription.replace(/<[^>]*>/g, '');
+      const baseDescription = entry.description || '';
+      const textContent = baseDescription.replace(/<[^>]*>/g, '').replace(/@[A-Za-z0-9\s_.-]+/g, '[ref]');
       const needsTruncation = textContent.length > MAX_DESC_LENGTH_PREVIEW;
 
       if (needsTruncation) {
-        setPreviewHtml(`${textContent.substring(0, MAX_DESC_LENGTH_PREVIEW)}...`);
+        const truncatedDesc = baseDescription.substring(0, MAX_DESC_LENGTH_PREVIEW) + '...';
+        setPreviewDescriptionContent(truncatedDesc);
         setShowGradient(true);
       } else {
-        setPreviewHtml(baseDescription);
+        setPreviewDescriptionContent(baseDescription);
         setShowGradient(false);
       }
     }
-  }, [isClient, entry.description, entry.linkedDescriptionHtml, entry.name]);
+  }, [isClient, entry.description, entry.name]);
 
-  const fullDescriptionHtml = entry.linkedDescriptionHtml || entry.description;
+  const fullDescription = entry.description || '';
 
   const handleSuggestionSubmit = (suggestionData: any) => {
     toast({
@@ -83,8 +281,6 @@ export function EntryCard({ entry }: EntryCardProps) {
   const videoLink = entry.type === 'exicon' ? (entry as ExiconEntry).videoLink : undefined;
   const embedUrl = videoLink ? getYouTubeEmbedUrl(videoLink) : null;
 
-  console.log("Entry Aliases:", entry.aliases); // Added console log here
-
   return (
     <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
       <DialogTrigger asChild>
@@ -95,15 +291,12 @@ export function EntryCard({ entry }: EntryCardProps) {
                 <CardTitle className="text-xl font-semibold text-primary">{entry.name}</CardTitle>
                 {entry.aliases && entry.aliases.length > 0 ? (
                   <p className="text-sm text-muted-foreground italic">
-  Also known as:{' '}
-  {entry.aliases
-    .map(alias => (typeof alias === 'string' ? alias : alias.name))
-    .join(', ')}
-</p>
-) :
-null
-}
-
+                    Also known as:{' '}
+                    {entry.aliases
+                      .map(alias => (typeof alias === 'string' ? alias : alias.name))
+                      .join(', ')}
+                  </p>
+                ) : null}
               </div>
               <TooltipProvider>
                 <Tooltip>
@@ -128,7 +321,7 @@ null
 
           <CardContent className="flex-grow space-y-3">
             <div className="prose prose-sm max-w-none text-foreground break-words relative max-h-[4.5rem] overflow-hidden">
-              <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+              <div>{renderDescriptionWithMentions(previewDescriptionContent, entry.resolvedMentionsData, 'default')}</div>
               {showGradient && (
                 <div className="absolute bottom-0 left-0 w-full h-6 bg-gradient-to-t from-card via-card/80 to-transparent" />
               )}
@@ -136,16 +329,14 @@ null
           </CardContent>
 
           <CardFooter className="flex flex-wrap gap-2 pt-4 border-t mt-auto">
-  {entry.type === 'exicon' && Array.isArray((entry as ExiconEntry).tags) && (entry as ExiconEntry).tags.length > 0 ? (
-    (entry as ExiconEntry).tags.map(tag => (
-      <Badge key={tag.id} variant="secondary" className="font-normal">
-        {tag.name}
-      </Badge>
-    ))
-  ) : (
- null
-  )}
-</CardFooter>
+            {entry.type === 'exicon' && Array.isArray((entry as ExiconEntry).tags) && (entry as ExiconEntry).tags.length > 0 ? (
+              (entry as ExiconEntry).tags.map(tag => (
+                <Badge key={tag.id} variant="secondary" className="font-normal">
+                  {tag.name}
+                </Badge>
+              ))
+            ) : null}
+          </CardFooter>
         </Card>
       </DialogTrigger>
 
@@ -153,19 +344,21 @@ null
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-2xl text-primary">{entry.name}</DialogTitle>
           {entry.aliases && entry.aliases.length > 0 ? (
-  <CardDescription className="text-sm italic mt-1">
-    Also known as:{' '}
-    {entry.aliases.map(alias =>
-      typeof alias === 'string' ? alias : alias.name
-    ).join(', ')}
-  </CardDescription>
-) : null}
+            <CardDescription className="text-sm italic mt-1">
+              Also known as:{' '}
+              {entry.aliases.map(alias =>
+                typeof alias === 'string' ? alias : alias.name
+              ).join(', ')}
+            </CardDescription>
+          ) : null}
         </DialogHeader>
 
         <div className="flex-grow overflow-y-auto space-y-4 pr-3 py-2">
-          <div className="prose prose-base max-w-none text-foreground break-words">
-            <div dangerouslySetInnerHTML={{ __html: fullDescriptionHtml }} />
-          </div>
+          <DialogDescription asChild>
+            <div className="prose prose-base max-w-none text-foreground break-words leading-relaxed">
+              {renderDescriptionWithMentions(fullDescription, entry.resolvedMentionsData, 'vibrant')}
+            </div>
+          </DialogDescription>
 
           {entry.type === 'exicon' && (
             <div className="space-y-3">
@@ -200,22 +393,22 @@ null
             </div>
           )}
 
-{entry.type === 'exicon' && (
-  <div className="pt-2">
-    <h4 className="text-md font-semibold mb-2">Tags:</h4>
-    {(entry as ExiconEntry).tags.length > 0 ? (
-      <div className="flex flex-wrap gap-2">
-        {(entry as ExiconEntry).tags.map(tag => (
-          <Badge key={tag.id} variant="secondary" className="font-normal">
-            {tag.name}
-          </Badge>
-        ))}
-      </div>
-    ) : (
-      <p className="text-sm text-muted-foreground italic">No tags available for this exercise.</p>
-    )}
-  </div>
-)}
+          {entry.type === 'exicon' && (
+            <div className="pt-2">
+              <h4 className="text-md font-semibold mb-2">Tags:</h4>
+              {(entry as ExiconEntry).tags && (entry as ExiconEntry).tags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {(entry as ExiconEntry).tags.map(tag => (
+                    <Badge key={tag.id} variant="secondary" className="font-normal">
+                      {tag.name}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">No tags available for this exercise.</p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex-shrink-0 pt-4 border-t flex flex-col sm:flex-row justify-end gap-2">
