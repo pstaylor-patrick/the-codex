@@ -3,6 +3,9 @@ import { ExiconClientPageContent } from './ExiconClientPageContent';
 import { fetchAllEntries } from '@/lib/api';
 import type { ExiconEntry, AnyEntry, Tag } from '@/lib/types';
 
+// Force dynamic rendering - this prevents static generation at build time
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'Exicon - F3 Codex',
   description: 'Explore F3 exercises in the Exicon.',
@@ -10,7 +13,7 @@ export const metadata = {
 
 async function getExiconEntries() {
   try {
-    console.log('Fetching all entries for exicon at build time using src/lib/api.ts...');
+    console.log('Fetching all entries for exicon at runtime using src/lib/api.ts...');
     const allEntries: AnyEntry[] = await fetchAllEntries();
     console.log('All Entries with MentionedEntries:', allEntries
       .filter(entry => entry.mentionedEntries?.length)
@@ -40,11 +43,11 @@ async function getExiconEntries() {
         mentionedEntries: entry.mentionedEntries
       })));
 
-    console.log(`Successfully fetched and filtered ${exiconEntries.length} exicon entries at build time.`);
+    console.log(`Successfully fetched and filtered ${exiconEntries.length} exicon entries at runtime.`);
     return { exiconEntries, allEntries };
   } catch (error) {
-    console.error('❌ Build-time Data Fetching Error: Could not fetch exicon entries:', error);
-    throw new Error('Failed to fetch exicon entries at build time.');
+    console.error('❌ Runtime Data Fetching Error: Could not fetch exicon entries:', error);
+    throw new Error('Failed to fetch exicon entries at runtime.');
   }
 }
 
