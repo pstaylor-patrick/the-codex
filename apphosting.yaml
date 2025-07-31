@@ -1,0 +1,7 @@
+runConfig:
+  env:
+    - variable: DATABASE_URL   # The name of the environment variable in your app
+      secret: DATABASE_URL    # The NAME of the secret in Google Cloud Secret Manager
+      availability:
+        - BUILD
+        - RUNTIME
