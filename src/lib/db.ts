@@ -1,12 +1,15 @@
 import { Pool, type PoolClient } from 'pg';
 import dotenv from 'dotenv';
 
-dotenv.config();
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+}
 
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-  console.error('❌ CRITICAL: DATABASE_URL is not set in .env');
+
+  console.error('❌ CRITICAL: DATABASE_URL is not set in the environment.');
   throw new Error('DATABASE_URL is missing. Cannot connect to the database.');
 } else {
   console.log('✅ DATABASE_URL is set. Attempting connection...');
@@ -16,16 +19,12 @@ if (!connectionString) {
 const isProduction = process.env.NODE_ENV === 'production';
 const ssl =
   isProduction
-    ? { rejectUnauthorized: false } // Cloud SQL / hosted environments often need this
-    : false; // For localhost development without SSL
+    ? { rejectUnauthorized: false }
+    : false;
 
 const pool = new Pool({
   connectionString,
   ssl,
-  // Optional tuning:
-  // max: 10,
-  // idleTimeoutMillis: 30_000,
-  // connectionTimeoutMillis: 2_000,
 });
 
 pool.on('error', (err) => {
