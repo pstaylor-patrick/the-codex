@@ -1,56 +1,46 @@
-
 import { Pool, type PoolClient } from 'pg';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-  console.error('CRITICAL: DATABASE_URL environment variable is not set. Please ensure it is configured in your .env file or environment variables.');
-  throw new Error('DATABASE_URL environment variable is not set. Application cannot connect to the database.');
+  console.error('❌ CRITICAL: DATABASE_URL is not set in .env');
+  throw new Error('DATABASE_URL is missing. Cannot connect to the database.');
 } else {
-  // Log only a part of it for security, or just confirm it's set
-  console.log('DATABASE_URL is set, attempting to connect to PostgreSQL.');
+  console.log('✅ DATABASE_URL is set. Attempting connection...');
 }
 
-// Determine SSL configuration based on environment
-// For production environments (like GCP), require SSL without rejecting unauthorized certs by default.
-// For development, allow less strict SSL settings for local self-signed certificates.
+// Determine SSL configuration
 const isProduction = process.env.NODE_ENV === 'production';
-const sslConfig = isProduction
-  ? { ssl: true } // Standard SSL for production (e.g., Cloud SQL)
-  : { ssl: { rejectUnauthorized: false } }; // For local dev with self-signed certs
+const ssl =
+  isProduction
+    ? { rejectUnauthorized: false } // Cloud SQL / hosted environments often need this
+    : false; // For localhost development without SSL
 
-// Create a single pool instance for the application
 const pool = new Pool({
   connectionString,
-  ...sslConfig,
-  // Optional: add more pool configuration if needed, e.g., max connections
-  // max: 20,
-  // idleTimeoutMillis: 30000,
-  // connectionTimeoutMillis: 2000,
+  ssl,
+  // Optional tuning:
+  // max: 10,
+  // idleTimeoutMillis: 30_000,
+  // connectionTimeoutMillis: 2_000,
 });
 
-pool.on('error', (err: any, client: any) => {
-  console.error('Unexpected error on idle client in PostgreSQL pool:', err);
-  // process.exit(-1); // Decide if errors on idle clients should terminate the app
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle PostgreSQL client:', err);
 });
 
-// Export a function to get a client from the pool
+/**
+ * Acquires a PostgreSQL client from the connection pool.
+ */
 export async function getClient(): Promise<PoolClient> {
   try {
     const client = await pool.connect();
     return client;
-  } catch (error) {
-    console.error('Error acquiring client from PostgreSQL pool:', error);
-    throw error; // Re-throw the error to be handled by the caller
+  } catch (err) {
+    console.error('❌ Failed to acquire client from PostgreSQL pool:', err);
+    throw err;
   }
 }
-
-// Optional: Graceful shutdown (though Next.js might handle this differently)
-// async function shutdown() {
-//   console.log('Shutting down database pool...');
-//   await pool.end();
-//   console.log('Database pool closed.');
-// }
-
-// process.on('SIGINT', shutdown);
-// process.on('SIGTERM', shutdown);
