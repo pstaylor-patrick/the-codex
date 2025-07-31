@@ -1,3 +1,4 @@
+
 {
   "name": "codex",
   "version": "0.1.0",
@@ -12,12 +13,9 @@
     "deploy": "npm run build && firebase deploy",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit",
-    "db:migrate:create": "node-pg-migrate create",
-    "db:migrate:up": "node -r dotenv/config ./node_modules/.bin/node-pg-migrate up",
-    "db:migrate:down": "node -r dotenv/config ./node_modules/.bin/node-pg-migrate down",
-    "db:import-data": "dotenv -- tsx scripts/import-lexicon-csv.mts"
+    "typecheck": "tsc --noEmit"
   },
+
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
     "@genkit-ai/next": "^1.8.0",
