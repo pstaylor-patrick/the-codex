@@ -37,6 +37,9 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
+
+  
+  // This is for development
   allowedDevOrigins: [
     'https://3000-firebase-the-codex-1753381827295.cluster-pgviq6mvsncnqxx6kr7pbz65v6.cloudworkstations.dev',
   ],

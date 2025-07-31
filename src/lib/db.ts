@@ -1,15 +1,10 @@
 // src/lib/db.ts
 
-// --- REMOVE THESE DEBUGGING LINES FOR PROD, BUT KEEP THEM FOR NOW IF SUPPORT ASKS FOR THEM ---
-// console.log('--- DB.TS FILE LOADED (DEBUG) ---');
-// console.log('NODE_ENV:', process.env.NODE_ENV);
-// console.log('DATABASE_URL (at load):', process.env.DATABASE_URL ? '***** (present)' : 'NOT PRESENT');
-// console.log('--- END DB.TS LOAD DEBUG ---');
-// --- END DEBUGGING LINES ---
+
 
 import { Pool, type PoolClient } from 'pg';
-// REMOVE: import dotenv from 'dotenv';
-// REMOVE: if (process.env.NODE_ENV !== 'production') { dotenv.config(); }
+import dotenv from 'dotenv';
+if (process.env.NODE_ENV !== 'production') { dotenv.config(); }
 
 const connectionString = process.env.DATABASE_URL;
 
