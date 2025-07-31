@@ -1,8 +1,7 @@
-// src/components/submission/SuggestionEditForm.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { AnyEntry, ExiconEntry, Tag, EditEntrySuggestionData } from '@/lib/types';
+import type { AnyEntry, ExiconEntry, Tag, EditEntrySuggestionData, ReferencedEntry, EntryWithReferences, NewUserSubmission } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,11 +10,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
-import { submitEditEntrySuggestion, fetchAllTags } from '@/app/submit/actions'; 
+import { submitEditEntrySuggestion, fetchAllTags, searchEntriesByName } from '@/app/submit/actions';
+import { MentionTextArea } from '@/components/shared/MentionTextArea';
 
 interface SuggestionEditFormProps {
   entryToSuggestEditFor: AnyEntry;
-  onFormSubmit: (suggestionData: EditEntrySuggestionData) => void; 
+  onFormSubmit: (suggestionData: EditEntrySuggestionData) => void;
   onClose: () => void;
 }
 
@@ -34,12 +34,13 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
 
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [isLoadingTags, setIsLoadingTags] = useState(true);
+  const [suggestedReferences, setSuggestedReferences] = useState<ReferencedEntry[]>([]);
 
   useEffect(() => {
     const loadTags = async () => {
       try {
         setIsLoadingTags(true);
-        const tags = await fetchAllTags(); 
+        const tags = await fetchAllTags();
         setAvailableTags(tags.sort((a,b) => a.name.localeCompare(b.name)));
       } catch (error) {
         console.error("Failed to load tags for suggestion form:", error);
@@ -51,31 +52,55 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
     loadTags();
   }, [toast]);
 
-  // Initialize suggestedAliases based on the entry's aliases
   useEffect(() => {
     if (Array.isArray(entryToSuggestEditFor.aliases)) {
       const formattedAliases = entryToSuggestEditFor.aliases
         .map(alias => {
           if (typeof alias === 'string') return alias;
           if (alias && typeof alias === 'object' && 'name' in alias && typeof alias.name === 'string') return alias.name;
-          return ''; // Or handle invalid alias objects as needed
+          return '';
         })
-        .filter(Boolean) // Remove any empty strings from invalid aliases
+        .filter(Boolean)
         .join(', ');
       setSuggestedAliases(formattedAliases);
     } else {
       setSuggestedAliases('');
     }
   }, [entryToSuggestEditFor.aliases]);
+  const fetchEntryById = async (id: string): Promise<EntryWithReferences | null> => {
+    const response = await fetch(`/api/entries/${id}`);
+    if (!response.ok) {
+      return null;
+    }
+    return response.json() as unknown as EntryWithReferences;
+  };
+  const handleSuggestedMentionsChange = async (mentions: { id: string; name: string }[]) => {
+    const resolvedMentions: ReferencedEntry[] = [];
+    for (const mention of mentions) {
+      const fullEntry = await fetchEntryById(mention.id);
+      if (fullEntry) {
+        resolvedMentions.push({
+          id: fullEntry.id,
+          name: fullEntry.name,
+          description: fullEntry.description,
+          type: fullEntry.type,
+        });
+      } else {
+        console.error(`Entry with ID ${mention.id} not found.`);
+      }
+    }
+  
+    setSuggestedReferences(resolvedMentions);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+  
     if (!comments.trim()) {
       toast({ title: "Comments Required", description: "Please provide comments explaining your suggested changes.", variant: "destructive" });
       return;
     }
-
+  
     const editDataPayload: EditEntrySuggestionData = {
       entryId: entryToSuggestEditFor.id,
       entryName: entryToSuggestEditFor.name,
@@ -85,38 +110,45 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
         aliases: suggestedAliases.split(',').map(a => a.trim()).filter(Boolean),
         tags: isExicon ? suggestedTagIds.map(id => availableTags.find(t => t.id === id)?.name).filter(Boolean) as string[] : undefined,
         videoLink: isExicon && suggestedVideoLink !== exiconEntry?.videoLink ? suggestedVideoLink : undefined,
+        mentionedEntries: suggestedReferences.map(ref => ref.id), // Extract only the IDs
       },
       comments,
     };
-
-    // Filter out undefined change fields to only send actual changes
+    
+  
     Object.keys(editDataPayload.changes).forEach(keyStr => {
       const key = keyStr as keyof EditEntrySuggestionData['changes'];
       if (editDataPayload.changes[key] === undefined) {
         delete editDataPayload.changes[key];
       }
-      if (Array.isArray(editDataPayload.changes[key]) && (editDataPayload.changes[key] as string[]).length === 0) {
-        const originalArray = entryToSuggestEditFor.type === 'exicon' && key === 'tags' ? (entryToSuggestEditFor as ExiconEntry).tags.map(t=>t.name) : (entryToSuggestEditFor[key as keyof AnyEntry] as string[]);
+      if (Array.isArray(editDataPayload.changes[key]) && (editDataPayload.changes[key] as (string | ReferencedEntry)[]).length === 0) {
+        const originalArray = entryToSuggestEditFor.type === 'exicon' && key === 'tags' ? (entryToSuggestEditFor as ExiconEntry).tags.map(t=>t.name) : (entryToSuggestEditFor[key as keyof AnyEntry] as (string | ReferencedEntry)[]);
         if (originalArray === undefined || originalArray.length === 0) {
            delete editDataPayload.changes[key];
         }
       }
     });
-    
-    const submissionPayload = {
-      ...editDataPayload,
+  
+    if (suggestedDescription === entryToSuggestEditFor.description && suggestedReferences.length === 0) {
+      delete editDataPayload.changes.mentionedEntries;
+    }
+  
+
+    const submissionPayload: NewUserSubmission<EditEntrySuggestionData> = {
+      submissionType: 'edit',
+      data: editDataPayload,
       submitterName: submitterName || undefined,
       submitterEmail: submitterEmail || undefined,
     };
-
+  
     try {
       await submitEditEntrySuggestion(submissionPayload);
       toast({
         title: "Suggestion Submitted",
         description: `Your edit suggestions for "${entryToSuggestEditFor.name}" have been sent for review.`,
       });
-      onFormSubmit(editDataPayload); 
-      onClose(); 
+      onFormSubmit(editDataPayload);
+      onClose();
     } catch (error) {
       console.error("Error submitting edit suggestion:", error);
       toast({ title: "Submission Failed", description: "Could not submit your edit suggestion. Please try again.", variant: "destructive" });
@@ -143,12 +175,14 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
             <TabsContent value="description">
               <div className="space-y-2">
                 <Label htmlFor="suggestedDescription">Suggested Description</Label>
-                <Textarea 
-                  id="suggestedDescription" 
-                  value={suggestedDescription} 
-                  onChange={(e) => setSuggestedDescription(e.target.value)} 
-                  rows={8} 
-                  className="min-h-[200px]"
+                <MentionTextArea
+                  // id="suggestedDescription"
+                  value={suggestedDescription}
+                  onChange={setSuggestedDescription}
+                  onMentionsChange={handleSuggestedMentionsChange}
+                  searchEntries={searchEntriesByName}
+                  rows={8}
+                  placeholder="Suggest a description with @mentions..."
                 />
               </div>
             </TabsContent>
@@ -156,10 +190,10 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
             <TabsContent value="aliases">
               <div className="space-y-2">
                 <Label htmlFor="suggestedAliases">Suggested Aliases (comma-separated)</Label>
-                <Input 
-                  id="suggestedAliases" 
-                  value={suggestedAliases} 
-                  onChange={(e) => setSuggestedAliases(e.target.value)} 
+                <Input
+                  id="suggestedAliases"
+                  value={suggestedAliases}
+                  onChange={(e) => setSuggestedAliases(e.target.value)}
                 />
               </div>
             </TabsContent>
@@ -169,11 +203,11 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
                 <TabsContent value="video">
                   <div className="space-y-2">
                     <Label htmlFor="suggestedVideoLink">Suggested Video Link</Label>
-                    <Input 
-                      id="suggestedVideoLink" 
-                      type="url" 
-                      value={suggestedVideoLink} 
-                      onChange={(e) => setSuggestedVideoLink(e.target.value)} 
+                    <Input
+                      id="suggestedVideoLink"
+                      type="url"
+                      value={suggestedVideoLink}
+                      onChange={(e) => setSuggestedVideoLink(e.target.value)}
                       placeholder={exiconEntry?.videoLink ? "Update existing link" : "https://youtube.com/watch?v=..."}
                     />
                   </div>
@@ -200,17 +234,17 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
                 </TabsContent>
               </>
             )}
-            
+
             <TabsContent value="info">
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="comments">Reason for Changes / Comments <span className="text-destructive">*</span></Label>
-                        <Textarea 
-                        id="comments" 
-                        value={comments} 
-                        onChange={(e) => setComments(e.target.value)} 
+                        <Textarea
+                        id="comments"
+                        value={comments}
+                        onChange={(e) => setComments(e.target.value)}
                         rows={3}
-                        required 
+                        required
                         />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import type { Configuration } from 'webpack';
 
 const nextConfig: NextConfig = {
   typescript: {
@@ -17,19 +18,28 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  webpack: (config, { isServer }) => {
+  webpack: (
+    config: Configuration,
+    { isServer }
+  ): Configuration => {
     if (!isServer) {
-      config.resolve.fallback = {
-        ...(config.resolve.fallback || {}),
-        dns: false,
-        fs: false,
-        net: false,
-        tls: false,
-        'pg-native': false,
+      config.resolve = {
+        ...(config.resolve || {}),
+        fallback: {
+          ...(config.resolve?.fallback || {}),
+          dns: false,
+          fs: false,
+          net: false,
+          tls: false,
+          'pg-native': false,
+        },
       };
     }
     return config;
   },
+  allowedDevOrigins: [
+    'https://3000-firebase-the-codex-1753381827295.cluster-pgviq6mvsncnqxx6kr7pbz65v6.cloudworkstations.dev',
+  ],
 };
 
 export default nextConfig;

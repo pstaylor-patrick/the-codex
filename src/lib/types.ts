@@ -1,11 +1,23 @@
+// src/lib/types.ts
+
+// --- Core Entry Types ---
+
 export interface Tag {
-  id: string; // Tags may still come from various sources, keep as string
+  id: string;
   name: string;
 }
 
 export interface Alias {
-  id: string; // Use string for consistency with Tag ID structure
+  id?: string; 
   name: string;
+}
+
+
+export interface ReferencedEntry {
+  id: string;
+  name: string;
+  description: string;
+  type: 'exicon' | 'lexicon';
 }
 
 export interface BaseEntry {
@@ -13,9 +25,11 @@ export interface BaseEntry {
   name: string;
   description: string;
   linkedDescriptionHtml?: string;
-  aliases?: Alias[]; // ✅ updated from string[] to Alias[]
+  aliases?: Alias[];
+  references?: ReferencedEntry[];
+  mentionedEntries?: string[];
+  resolvedMentionsData?: Record<string, AnyEntry>;
 }
-
 export interface ExiconEntry extends BaseEntry {
   type: 'exicon';
   tags: Tag[];
@@ -26,15 +40,53 @@ export interface LexiconEntry extends BaseEntry {
   type: 'lexicon';
 }
 
+
 export type AnyEntry = ExiconEntry | LexiconEntry;
+
+export type EntryWithReferences = AnyEntry & {
+  referencedBy?: ReferencedEntry[];
+};
 
 export type FilterLogic = 'AND' | 'OR';
 
 
-// Base type for UserSubmission to allow for a numeric ID from the database
+// --- User Submission Types ---
+
+// Data structure for suggesting a NEW entry
+export interface NewEntrySuggestionData {
+  name: string;
+  description: string;
+  aliases: string[];
+  entryType: 'exicon' | 'lexicon';
+  tags: string[];
+  videoLink?: string;
+  mentionedEntries: string[];
+  id?: string;
+}
+
+
+export interface EditEntrySuggestionData {
+  entryId: string;
+  entryName: string;
+  entryType: 'exicon' | 'lexicon';
+  changes: {
+    name?: string;
+    description?: string;
+    aliases?: string[];
+    tags?: string[];
+    videoLink?: string;
+    mentionedEntries?: string[];
+    entryType?: 'exicon' | 'lexicon';
+  };
+  comments?: string;
+}
+
+
+// This is the core structure stored in the `user_submissions` table.
+// T is the *payload* type (NewEntrySuggestionData or EditEntrySuggestionData)
 export interface UserSubmissionBase<T = NewEntrySuggestionData | EditEntrySuggestionData> {
   id: number;
-  submissionType: 'new' | 'edit';
+  submissionType: 'new' | 'edit'; 
   data: T;
   submitterName?: string;
   submitterEmail?: string;
@@ -42,30 +94,9 @@ export interface UserSubmissionBase<T = NewEntrySuggestionData | EditEntrySugges
   timestamp: string;
 }
 
-// Types for User Submissions data payloads
-export interface NewEntrySuggestionData {
-  entryType: 'exicon' | 'lexicon';
-  name: string;
-  description: string;
-  aliases?: string[]; // ✅ still use string[] for input forms
-  tags?: string[];     // tags can be names or IDs
-  videoLink?: string;
-}
 
-export interface EditEntrySuggestionData {
-  entryId: string;
-  entryName: string;
-  entryType: 'exicon' | 'lexicon';
-  changes: {
-    description?: string;
-    aliases?: string[]; // ✅ input-only
-    tags?: string[];
-    videoLink?: string;
-  };
-  comments: string;
-}
+export type UserSubmission = UserSubmissionBase<NewEntrySuggestionData | EditEntrySuggestionData>;
 
-export type UserSubmission<T = NewEntrySuggestionData | EditEntrySuggestionData> = UserSubmissionBase<T>;
 
 export type NewUserSubmission<T = NewEntrySuggestionData | EditEntrySuggestionData> =
   Omit<UserSubmissionBase<T>, 'id' | 'status' | 'timestamp'>;
