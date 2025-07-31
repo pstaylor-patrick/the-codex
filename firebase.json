@@ -12,5 +12,9 @@
         "destination": "/index.html"
       }
     ]
+  },
+  "apphosting": {
+    "backendId": "studio",
+    "rootDir": "."
   }
 }
