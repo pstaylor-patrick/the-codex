@@ -1,7 +1,13 @@
+# apphosting.yaml
 runConfig:
   env:
     - variable: DATABASE_URL
       secret: DATABASE_URL
+      availability:
+        - BUILD
+        - RUNTIME
+    - variable: MY_APP_FIREBASE_ADMIN_KEY
+      secret: FIREBASE_ADMIN_SDK_KEY
       availability:
         - BUILD
         - RUNTIME

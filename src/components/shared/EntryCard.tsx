@@ -31,14 +31,6 @@ const renderDescriptionWithMentions = (
 ) => {
   if (!description) return <span>No description available.</span>;
 
-  if (description.includes('Black Jack is in this')) {
-    console.log('Test-2 EntryCard resolvedMentionsData:', JSON.stringify(resolvedMentionsData, (key, value) => {
-      if (value && typeof value === 'object' && 'id' in value && 'name' in value) {
-        return { id: value.id, name: value.name, type: value.type };
-      }
-      return value;
-    }, 2));
-  }
 
   const parts: (string | JSX.Element)[] = [];
   
