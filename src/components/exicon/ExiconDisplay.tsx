@@ -1,3 +1,5 @@
+// src/components/exicon/ExiconDisplay.tsx
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -9,7 +11,7 @@ import { Download } from 'lucide-react';
 import { EntryGrid } from '@/components/shared/EntryGrid';
 
 interface ExiconDisplayProps {
-  initialEntries: ExiconEntry[]; // Will receive entries with linkedDescriptionHtml
+  initialEntries: ExiconEntry[];
   allTags: Tag[];
 }
 
@@ -73,11 +75,11 @@ export function ExiconDisplay({ initialEntries, allTags }: ExiconDisplayProps) {
         alias.name.toLowerCase().includes(searchTermLower)
       ) || false;
 
+
       if (!(nameMatch || descMatch || aliasMatch)) return false;
 
       if (!selectedTags.length) return true;
-
-      const entryTagIds = entry.tags.map(tag => tag.id);
+      const entryTagIds = entry.tags?.map(tag => tag.id) || [];
       return filterLogic === 'AND'
         ? selectedTags.every(tagId => entryTagIds.includes(tagId))
         : selectedTags.some(tagId => entryTagIds.includes(tagId));
