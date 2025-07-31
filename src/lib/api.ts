@@ -213,7 +213,6 @@ export async function processAndSaveReferences(
       mentionedNames = [...new Set(
         Array.from(description.matchAll(mentionRegex)).map(match => match[1].trim())
       )];
-      console.log(`DEBUG: Extracted mentioned names from description for entry ${entryId}:`, mentionedNames);
 
 
       const resolvedReferencesPromises = mentionedNames.map(async (name) => {
@@ -323,7 +322,6 @@ export const fetchAllEntries = async (): Promise<EntryWithReferences[]> => {
       FROM entries
       WHERE id IN ('exicon-1753308735125-black-jack', 'exicon-1753308719130-abyss-merkin')
     `);
-    console.log('Referenced Entries Existence Check:', referencedEntriesRes.rows);
 
     const transformedEntries = res.rows.map(transformDbRowToEntry);
 
@@ -345,21 +343,6 @@ export const fetchAllEntries = async (): Promise<EntryWithReferences[]> => {
     if (client) client.release();
   }
 };
-// export async function getEntryIdByName(name: string): Promise<string | null> {
-//   const client = await getClient();
-//   try {
-//     console.log(`DEBUG: Looking up entry ID for name: "${name}"`);
-//     const res = await client.query('SELECT id::text, title FROM entries WHERE LOWER(title) = LOWER($1)', [name]);
-//     if (res.rows.length > 0) {
-//       console.log(`DEBUG: Found entry for "${name}":`, res.rows[0]);
-//       return res.rows[0].id;
-//     }
-//     console.log(`DEBUG: No entry found for "${name}"`);
-//     return null;
-//   } finally {
-//     if (client) client.release();
-//   }
-// }
 
 
 export const getEntryByIdFromDatabase = async (
@@ -431,15 +414,12 @@ export const getEntryByIdFromDatabase = async (
       WHERE e.id = $1
     `, [queryId]);
 
-    console.log('DEBUG: getEntryByIdFromDatabase - raw query result:', res.rows[0]);
 
     if (res.rows.length === 0) {
       return null;
     }
 
     const result = transformDbRowToEntry(res.rows[0]);
-
-    console.log('DEBUG: getEntryByIdFromDatabase - transformed result:', result);
     return result;
   } catch (err) {
     console.error(`Error fetching entry with ID ${id}:`, err);
@@ -460,12 +440,6 @@ export const createEntryInDatabase = async (
     const entryId =
       entry.id || `${entryType}-${Date.now()}-${name.toLowerCase().replace(/\s+/g, '-')}`;
 
-    console.log(`DEBUG: createEntryInDatabase START`);
-    console.log(`DEBUG: - entryId: ${entryId}`);
-    console.log(`DEBUG: - name: ${name}`);
-    console.log(`DEBUG: - description: ${description}`);
-    console.log(`DEBUG: - entryType: ${entryType}`);
-    console.log(`DEBUG: - mentionedEntries passed to createEntryInDatabase:`, mentionedEntries);
 
     const aliasesToStore: Alias[] = Array.isArray(aliases)
       ? aliases.map(alias =>
@@ -477,7 +451,6 @@ export const createEntryInDatabase = async (
       aliasesToStore.filter(a => a && a.name && a.name.trim() !== '')
     );
 
-    console.log(`DEBUG: Inserting new entry with ID: ${entryId}, type: ${entryType}, mentionedEntries:`, mentionedEntries);
 
     // Insert the basic entry first with empty mentioned_entries
     const insertResult = await client.query(
@@ -485,14 +458,13 @@ export const createEntryInDatabase = async (
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [entryId, name, description, entryType, aliasesJson, videoLink || null, '[]']
     );
-    console.log(`DEBUG: Entry inserted, rows affected:`, insertResult.rowCount);
+
 
     // Verify the entry was inserted
     const verifyInsert = await client.query('SELECT id, title, mentioned_entries FROM entries WHERE id = $1', [entryId]);
-    console.log(`DEBUG: Entry after insert:`, verifyInsert.rows[0]);
+
 
     if (entryType === 'exicon' && tags && tags.length > 0) {
-      console.log(`DEBUG: Processing tags for exicon entry:`, tags);
       const ensuredTagsWithIds = await ensureTagsExist(client, tags);
       const entryTagValues = ensuredTagsWithIds
         .map(tag => `('${entryId}', '${tag.id}')`)
@@ -504,32 +476,18 @@ export const createEntryInDatabase = async (
           VALUES ${entryTagValues}
           ON CONFLICT (entry_id, tag_id) DO NOTHING
         `);
-        console.log(`DEBUG: Tags associated with entry`);
+  
       }
     }
 
-    console.log(`DEBUG: About to call processAndSaveReferences`);
-    console.log(`DEBUG: - entryId: ${entryId}`);
-    console.log(`DEBUG: - description: ${description}`);
-    console.log(`DEBUG: - mentionedEntries: ${JSON.stringify(mentionedEntries)}`);
 
-    // ✅ Pass the transaction client to processAndSaveReferences
-    const processedNames = await processAndSaveReferences(entryId, description, mentionedEntries, client);
-    console.log(`DEBUG: processAndSaveReferences returned:`, processedNames);
-
-    // Verify the mentioned_entries were updated
-    const verifyUpdate = await client.query('SELECT id, title, mentioned_entries FROM entries WHERE id = $1', [entryId]);
-    console.log(`DEBUG: Entry after processAndSaveReferences:`, verifyUpdate.rows[0]);
 
     await client.query('COMMIT');
-    console.log(`DEBUG: Transaction committed`);
 
     const createdEntry = await getEntryByIdFromDatabase(entryId);
     if (!createdEntry) {
       throw new Error(`Failed to retrieve created entry with ID ${entryId}`);
     }
-
-    console.log(`DEBUG: createEntryInDatabase COMPLETE, returning:`, createdEntry);
     return createdEntry;
   } catch (err) {
     await client.query('ROLLBACK');
@@ -789,7 +747,6 @@ export async function createSubmissionInDatabase(
     );
 
     const createdSubmissionRow = res.rows[0];
-    console.log('DEBUG: Created submission:', createdSubmissionRow);
 
     return {
       id: createdSubmissionRow.id,
@@ -820,7 +777,6 @@ export const updateSubmissionStatusInDatabase = async (
     if (res.rowCount === 0) {
       throw new Error(`Submission with ID ${id} not found.`);
     }
-    console.log(`DEBUG: Submission ID ${id} status updated to ${status}.`);
   } catch (err) {
     console.error(`Error updating submission status for ID ${id} to ${status}:`, err);
     throw err;
@@ -834,18 +790,16 @@ export async function applyApprovedSubmissionToDatabase(submission: UserSubmissi
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    console.log(`DEBUG: Applying submission ID ${submission.id}, type: ${submission.submissionType}, data:`, submission.data);
+
 
     let updatedEntry: AnyEntry;
     const submissionData = submission.data;
 
     if (submission.submissionType === 'new') {
       const newEntryData = submissionData as NewEntrySuggestionData & { mentionedEntries?: string[] };
-      console.log(`DEBUG: Creating new entry from submission:`, newEntryData);
       updatedEntry = await createEntryInDatabase(newEntryData);
     } else if (submission.submissionType === 'edit') {
       const editEntryData = submissionData as EditEntrySuggestionData;
-      console.log(`DEBUG: Editing entry ID ${editEntryData.entryId} with changes:`, editEntryData.changes);
       const currentEntry = await getEntryByIdFromDatabase(editEntryData.entryId);
 
       if (!currentEntry) {
@@ -877,7 +831,6 @@ export async function applyApprovedSubmissionToDatabase(submission: UserSubmissi
     }
 
     await updateSubmissionStatusInDatabase(submission.id, 'approved');
-    console.log(`DEBUG: Submission ID ${submission.id} marked as approved`);
 
     await client.query('COMMIT');
     const finalEntry = await getEntryByIdFromDatabase(updatedEntry.id);
@@ -885,7 +838,6 @@ export async function applyApprovedSubmissionToDatabase(submission: UserSubmissi
       throw new Error('Failed to retrieve updated entry with references.');
     }
 
-    console.log(`DEBUG: Final entry after applying submission:`, finalEntry);
     return finalEntry;
   } catch (error) {
     console.error('Error applying approved submission to database:', error);
