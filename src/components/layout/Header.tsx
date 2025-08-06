@@ -8,7 +8,6 @@ const navItems = [
   { href: '/exicon', label: 'Exicon' },
   { href: '/lexicon', label: 'Lexicon' },
   { href: '/submit', label: 'Submit Entry' },
-  { href: '/admin', label: 'Admin' },
 ];
 
 export function Header() {
