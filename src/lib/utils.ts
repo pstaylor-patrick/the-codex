@@ -1,6 +1,6 @@
 // src/lib/utils.ts - Modify getYouTubeEmbedUrl
 
-import type { AnyEntry, EntryWithReferences } from './types';
+import type { AnyEntry } from './types';
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -17,7 +17,7 @@ export function cn(...inputs: ClassValue[]) {
  */
 export async function formatDescriptionWithMentionsHTML(
   description: string,
-  allEntries: AnyEntry[] // Use AnyEntry as we only need name and ID for linking
+  allEntries: AnyEntry[]
 ): Promise<string> {
   if (!description) {
     return '';
@@ -29,18 +29,16 @@ export async function formatDescriptionWithMentionsHTML(
   let match;
 
   const entryMap = new Map<string, AnyEntry>();
-  // Create a map for quick lookup, case-insensitive name
   for (const entry of allEntries) {
-      entryMap.set(entry.name.toLowerCase(), entry);
-       // Also add aliases to the map
-      if (entry.aliases) {
-         for (const alias of entry.aliases) {
-            const aliasName = typeof alias === 'string' ? alias : alias.name;
-            if (aliasName) {
-                 entryMap.set(aliasName.toLowerCase(), entry);
-            }
-         }
+    entryMap.set(entry.name.toLowerCase(), entry);
+    if (entry.aliases) {
+      for (const alias of entry.aliases) {
+        const aliasName = typeof alias === 'string' ? alias : alias.name;
+        if (aliasName) {
+          entryMap.set(aliasName.toLowerCase(), entry);
+        }
       }
+    }
   }
 
 
@@ -52,8 +50,6 @@ export async function formatDescriptionWithMentionsHTML(
     const matchedEntry = entryMap.get(mentionName.toLowerCase());
 
     if (matchedEntry) {
-      // Generate HTML for a resolved mention with data attributes for hover
-      // Using data attributes as a simple way to pass info for a client-side listener
       html += `<span
                  class="entry-mention text-blue-700 underline hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-900 cursor-pointer"
                  data-entry-id="${matchedEntry.id}"
@@ -64,7 +60,6 @@ export async function formatDescriptionWithMentionsHTML(
                  ${matchedEntry.name}
                </span>`;
     } else {
-      // Keep the @ sign and potentially style unresolved mentions
       html += `<span class="entry-mention text-yellow-700 dark:text-yellow-300 cursor-help" title="Could not find entry for &quot;${mentionName}&quot;">
                  @${mentionName}
                </span>`;
@@ -78,7 +73,6 @@ export async function formatDescriptionWithMentionsHTML(
   return html;
 }
 
-// Use RegExp object for youtubeRegex
 export const getYouTubeEmbedUrl = (url: string): string | null => {
   if (!url) return null;
 
@@ -91,3 +85,36 @@ export const getYouTubeEmbedUrl = (url: string): string | null => {
 
   return null;
 };
+
+export function exportToCSV(entries: AnyEntry[], filename: string = 'f3-codex-export.csv') {
+  if (!entries || entries.length === 0) {
+    return;
+  }
+
+  const replacer = (_key: string, value: any) => (value === null || value === undefined ? '' : value);
+
+  const header = ['ID', 'Name', 'Description', 'Aliases'];
+  const csvRows = [
+    header.join(','),
+    ...entries.map(entry => [
+      JSON.stringify(entry.id, replacer),
+      JSON.stringify(entry.name, replacer),
+      JSON.stringify(entry.description, replacer),
+      JSON.stringify(entry.aliases?.join('; ') || '', replacer),
+    ].join(','))
+  ];
+
+  const csvString = csvRows.join('\n');
+  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+}

@@ -111,7 +111,6 @@ export function SubmissionForm() {
   const handleMentionsChange = (mentions: { id: string; name: string }[]) => {
     const newMentionIds = mentions.map(mention => mention.id);
     setMentionedEntryIds(newMentionIds);
-    console.log('SubmissionForm: Updated mentionedEntryIds:', newMentionIds);
   };
 
   return (

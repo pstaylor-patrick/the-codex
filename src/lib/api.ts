@@ -11,7 +11,9 @@ import { PoolClient } from "pg";
 export type EntryWithReferences = AnyEntry & {
   references?: ReferencedEntry[];
   referencedBy?: ReferencedEntry[];
+  resolvedMentionsData?: Record<string, AnyEntry>;
 };
+
 
 
 
@@ -140,7 +142,6 @@ export async function deleteReferencesForEntry(client: PoolClient, sourceEntryId
   }
 }
 
-// Function to delete all references from a source entry
 export async function deleteEntryReferences(sourceEntryId: string) {
   const client = await getClient();
   try {
@@ -164,7 +165,6 @@ export async function processAndSaveReferences(
   providedMentionedEntries?: string[],
   client?: PoolClient
 ): Promise<string[]> {
-  // ✅ Use provided client or get a new one
   const dbClient = client || await getClient();
   const shouldReleaseClient = !client;
 
@@ -178,14 +178,12 @@ export async function processAndSaveReferences(
     if (providedMentionedEntries && providedMentionedEntries.length > 0) {
 
 
-      // Fetch titles for provided entry IDs
       const res = await dbClient.query(
         'SELECT id, title FROM entries WHERE id = ANY($1::text[])',
         [providedMentionedEntries]
       );
 
 
-      // Map IDs to titles and verify all provided IDs exist
       const idToTitleMap = new Map(res.rows.map(row => [row.id, row.title]));
 
 
@@ -260,7 +258,6 @@ export async function processAndSaveReferences(
 export const fetchAllEntries = async (): Promise<EntryWithReferences[]> => {
   const client = await getClient();
   try {
-    // ✅ FIX: Add mentioned_entries to the SELECT clause here too
     const res = await client.query(`
       SELECT
         e.id,
@@ -269,7 +266,7 @@ export const fetchAllEntries = async (): Promise<EntryWithReferences[]> => {
         e.type,
         e.aliases,
         e.video_link,
-        e.mentioned_entries,  -- ✅ This was missing!
+        e.mentioned_entries,
         COALESCE(
           (
             SELECT json_agg(
@@ -317,15 +314,53 @@ export const fetchAllEntries = async (): Promise<EntryWithReferences[]> => {
       ORDER BY e.title ASC
     `);
 
-    const referencedEntriesRes = await client.query(`
-      SELECT id, title
-      FROM entries
-      WHERE id IN ('exicon-1753308735125-black-jack', 'exicon-1753308719130-abyss-merkin')
-    `);
-
     const transformedEntries = res.rows.map(transformDbRowToEntry);
 
-    return transformedEntries;
+    const entriesWithResolvedMentions = await Promise.all(
+      transformedEntries.map(async (entry) => {
+        if (entry.mentionedEntries && entry.mentionedEntries.length > 0) {
+          const mentionedEntriesRes = await client.query(
+            `SELECT id, title, definition, type, aliases, video_link,
+             COALESCE(
+               (
+                 SELECT json_agg(
+                   json_build_object('id', t.id, 'name', t.name)
+                 )
+                 FROM tags t
+                 JOIN entry_tags et ON t.id = et.tag_id
+                 WHERE et.entry_id = entries.id
+               ),
+               '[]'::json
+             ) AS tags
+             FROM entries WHERE id = ANY($1::text[])`,
+            [entry.mentionedEntries]
+          );
+
+          const resolvedMentionsData: Record<string, AnyEntry> = {};
+          mentionedEntriesRes.rows.forEach((mentionedRow) => {
+            const mentionedEntry = transformDbRowToEntry(mentionedRow);
+            resolvedMentionsData[mentionedEntry.id] = mentionedEntry;
+            resolvedMentionsData[mentionedEntry.name] = mentionedEntry;
+
+            if (mentionedEntry.aliases) {
+              mentionedEntry.aliases.forEach(alias => {
+                const aliasName = typeof alias === 'string' ? alias : alias.name;
+                resolvedMentionsData[aliasName] = mentionedEntry;
+              });
+            }
+          });
+
+          return {
+            ...entry,
+            resolvedMentionsData
+          };
+        }
+
+        return entry;
+      })
+    );
+
+    return entriesWithResolvedMentions;
   } catch (err: any) {
     const errorMessage = err.message ? String(err.message).toLowerCase() : '';
     if (errorMessage.includes('relation "entries" does not exist')) {
@@ -352,7 +387,6 @@ export const getEntryByIdFromDatabase = async (
   try {
     const queryId = String(id);
 
-    // ✅ FIX: Add mentioned_entries to the SELECT clause
     const res = await client.query(`
       SELECT
         e.id,
@@ -361,7 +395,7 @@ export const getEntryByIdFromDatabase = async (
         e.type,
         e.aliases,
         e.video_link,
-        e.mentioned_entries,  -- ✅ This was missing!
+        e.mentioned_entries,
         COALESCE(
           (
             SELECT json_agg(
@@ -414,13 +448,51 @@ export const getEntryByIdFromDatabase = async (
       WHERE e.id = $1
     `, [queryId]);
 
-
     if (res.rows.length === 0) {
       return null;
     }
 
-    const result = transformDbRowToEntry(res.rows[0]);
-    return result;
+    const entry = transformDbRowToEntry(res.rows[0]);
+
+    if (entry.mentionedEntries && entry.mentionedEntries.length > 0) {
+      const mentionedEntriesRes = await client.query(
+        `SELECT id, title, definition, type, aliases, video_link,
+         COALESCE(
+           (
+             SELECT json_agg(
+               json_build_object('id', t.id, 'name', t.name)
+             )
+             FROM tags t
+             JOIN entry_tags et ON t.id = et.tag_id
+             WHERE et.entry_id = entries.id
+           ),
+           '[]'::json
+         ) AS tags
+         FROM entries WHERE id = ANY($1::text[])`,
+        [entry.mentionedEntries]
+      );
+
+      const resolvedMentionsData: Record<string, AnyEntry> = {};
+      mentionedEntriesRes.rows.forEach((mentionedRow) => {
+        const mentionedEntry = transformDbRowToEntry(mentionedRow);
+        resolvedMentionsData[mentionedEntry.id] = mentionedEntry;
+        resolvedMentionsData[mentionedEntry.name] = mentionedEntry;
+
+        if (mentionedEntry.aliases) {
+          mentionedEntry.aliases.forEach(alias => {
+            const aliasName = typeof alias === 'string' ? alias : alias.name;
+            resolvedMentionsData[aliasName] = mentionedEntry;
+          });
+        }
+      });
+
+      return {
+        ...entry,
+        resolvedMentionsData
+      };
+    }
+
+    return entry;
   } catch (err) {
     console.error(`Error fetching entry with ID ${id}:`, err);
     throw err;
@@ -429,74 +501,6 @@ export const getEntryByIdFromDatabase = async (
   }
 };
 
-export const createEntryInDatabase = async (
-  entry: NewEntrySuggestionData & { id?: string; mentionedEntries?: string[] }
-): Promise<EntryWithReferences> => {
-  const client = await getClient();
-  try {
-    await client.query('BEGIN');
-
-    const { name, description, entryType, aliases, videoLink, tags, mentionedEntries } = entry;
-    const entryId =
-      entry.id || `${entryType}-${Date.now()}-${name.toLowerCase().replace(/\s+/g, '-')}`;
-
-
-    const aliasesToStore: Alias[] = Array.isArray(aliases)
-      ? aliases.map(alias =>
-        typeof alias === 'string' ? { name: alias.trim() } : alias
-      )
-      : [];
-
-    const aliasesJson = JSON.stringify(
-      aliasesToStore.filter(a => a && a.name && a.name.trim() !== '')
-    );
-
-
-    // Insert the basic entry first with empty mentioned_entries
-    const insertResult = await client.query(
-      `INSERT INTO entries (id, title, definition, type, aliases, video_link, mentioned_entries)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [entryId, name, description, entryType, aliasesJson, videoLink || null, '[]']
-    );
-
-
-    // Verify the entry was inserted
-    const verifyInsert = await client.query('SELECT id, title, mentioned_entries FROM entries WHERE id = $1', [entryId]);
-
-
-    if (entryType === 'exicon' && tags && tags.length > 0) {
-      const ensuredTagsWithIds = await ensureTagsExist(client, tags);
-      const entryTagValues = ensuredTagsWithIds
-        .map(tag => `('${entryId}', '${tag.id}')`)
-        .join(',');
-
-      if (entryTagValues) {
-        await client.query(`
-          INSERT INTO entry_tags (entry_id, tag_id)
-          VALUES ${entryTagValues}
-          ON CONFLICT (entry_id, tag_id) DO NOTHING
-        `);
-  
-      }
-    }
-
-
-
-    await client.query('COMMIT');
-
-    const createdEntry = await getEntryByIdFromDatabase(entryId);
-    if (!createdEntry) {
-      throw new Error(`Failed to retrieve created entry with ID ${entryId}`);
-    }
-    return createdEntry;
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('❌ Error creating entry in database:', err);
-    throw err;
-  } finally {
-    client.release();
-  }
-};
 
 
 export const updateEntryInDatabase = async (entry: AnyEntry): Promise<EntryWithReferences> => {
@@ -555,16 +559,13 @@ export const deleteEntryFromDatabase = async (id: string | number): Promise<void
     await client.query('BEGIN');
     const queryId = String(id);
 
-    // Clean up tag links
     await client.query('DELETE FROM entry_tags WHERE entry_id = $1', [queryId]);
 
-    // Clean up references where this entry is either the source or target
     await client.query(
       'DELETE FROM entry_references WHERE source_entry_id = $1 OR target_entry_id = $1',
       [queryId]
     );
 
-    // Delete the actual entry
     const res = await client.query('DELETE FROM entries WHERE id = $1', [queryId]);
     if (res.rowCount === 0) {
       console.warn(`Entry with ID ${id} not found for deletion.`);
@@ -630,7 +631,7 @@ export const createTagInDatabase = async (name: string): Promise<Tag> => {
     );
     return res.rows[0];
   } catch (err: any) {
-    if (err.code === '23505') { // Unique violation
+    if (err.code === '23505') {
       throw new Error(`Tag "${name}" already exists.`);
     }
     console.error('Error creating tag in database:', err);
@@ -680,7 +681,6 @@ export async function ensureTagsExist(client: PoolClient, tagNames: string[]): P
       `INSERT INTO tags (name) VALUES ${tagsToInsert.map((_, i) => `($${i + 1})`).join(',')} ON CONFLICT (name) DO NOTHING`,
       tagsToInsert
     );
-    // Re-fetch to get IDs of newly inserted tags, plus existing ones
     const insertedOrExistingRes = await client.query('SELECT id, name FROM tags WHERE name = ANY($1::text[])', [validTagNames]);
     for (const row of insertedOrExistingRes.rows) {
       existingTagsMap.set(row.name, { id: String(row.id), name: row.name });
@@ -713,8 +713,8 @@ export const fetchPendingSubmissionsFromDatabase = async (): Promise<UserSubmiss
       submitterEmail: row.submitter_email,
       status: row.status,
       timestamp: row.timestamp,
-      description: row.description, // Ensure this property exists
-      name: row.name, // Ensure this property exists
+      description: row.description,
+      name: row.name,
     }));
   } catch (err) {
     console.error('Error fetching pending submissions from database:', err);
@@ -732,7 +732,6 @@ export async function createSubmissionInDatabase(
   try {
     const { submissionType, data, submitterName, submitterEmail } = submission;
 
-    // This check is good and correctly identifies 'undefined' submissionType
     if (submissionType !== 'new' && submissionType !== 'edit') {
       throw new Error(`Unknown submission type: ${submissionType}`);
     }
@@ -786,17 +785,20 @@ export const updateSubmissionStatusInDatabase = async (
 };
 
 
+
 export async function applyApprovedSubmissionToDatabase(submission: UserSubmissionBase<any>): Promise<EntryWithReferences> {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-
 
     let updatedEntry: AnyEntry;
     const submissionData = submission.data;
 
     if (submission.submissionType === 'new') {
       const newEntryData = submissionData as NewEntrySuggestionData & { mentionedEntries?: string[] };
+
+
+
       updatedEntry = await createEntryInDatabase(newEntryData);
     } else if (submission.submissionType === 'edit') {
       const editEntryData = submissionData as EditEntrySuggestionData;
@@ -844,5 +846,114 @@ export async function applyApprovedSubmissionToDatabase(submission: UserSubmissi
     throw error;
   } finally {
     if (client) client.release();
+  }
+}
+
+export const createEntryInDatabase = async (
+  entry: NewEntrySuggestionData & { id?: string; mentionedEntries?: string[] }
+): Promise<EntryWithReferences> => {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+
+    const { name, description, entryType, aliases, videoLink, tags, mentionedEntries } = entry;
+    const entryId =
+      entry.id || `${entryType}-${Date.now()}-${name.toLowerCase().replace(/\s+/g, '-')}`;
+
+
+    const aliasesToStore: Alias[] = Array.isArray(aliases)
+      ? aliases.map(alias =>
+        typeof alias === 'string' ? { name: alias.trim() } : alias
+      )
+      : [];
+
+    const aliasesJson = JSON.stringify(
+      aliasesToStore.filter(a => a && a.name && a.name.trim() !== '')
+    );
+
+    const insertResult = await client.query(
+      `INSERT INTO entries (id, title, definition, type, aliases, video_link, mentioned_entries)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [entryId, name, description, entryType, aliasesJson, videoLink || null, '[]']
+    );
+
+
+    if (entryType === 'exicon' && tags && tags.length > 0) {
+      const ensuredTagsWithIds = await ensureTagsExist(client, tags);
+      const entryTagValues = ensuredTagsWithIds
+        .map(tag => `('${entryId}', '${tag.id}')`)
+        .join(',');
+
+      if (entryTagValues) {
+        await client.query(`
+          INSERT INTO entry_tags (entry_id, tag_id)
+          VALUES ${entryTagValues}
+          ON CONFLICT (entry_id, tag_id) DO NOTHING
+        `);
+      }
+    }
+
+
+    await processAndSaveReferences(entryId, description, mentionedEntries, client);
+
+    await client.query('COMMIT');
+
+    const createdEntry = await getEntryByIdFromDatabase(entryId);
+    if (!createdEntry) {
+      throw new Error(`Failed to retrieve created entry with ID ${entryId}`);
+    }
+
+
+    return createdEntry;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('❌ Error creating entry in database:', err);
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+
+export async function searchEntriesByName(query: string): Promise<EntryWithReferences[]> {
+  const client = await getClient();
+  try {
+    if (!query || query.trim() === '') {
+      return [];
+    }
+    const searchQuery = `%${query.trim().toLowerCase()}%`;
+    const res = await client.query(
+      `SELECT
+          e.id,
+          e.title,
+          e.definition,
+          e.type,
+          e.aliases,
+          e.video_link,
+          e.mentioned_entries,  -- ✅ Added this field
+          ARRAY_AGG(DISTINCT t.id || '::' || t.name) FILTER (WHERE t.id IS NOT NULL) AS tags_array
+       FROM
+          entries e
+       LEFT JOIN
+          entry_tags et ON e.id = et.entry_id
+       LEFT JOIN
+          tags t ON et.tag_id = t.id
+       WHERE
+          LOWER(e.title) LIKE $1 OR LOWER(e.aliases::text) LIKE $1
+       GROUP BY
+          e.id, e.title, e.definition, e.type, e.aliases, e.video_link, e.mentioned_entries  -- ✅ Added to GROUP BY
+       ORDER BY
+          e.title
+       LIMIT 10`,
+      [searchQuery]
+    );
+
+    return res.rows.map(row => transformDbRowToEntry(row)) as EntryWithReferences[];
+
+  } catch (error) {
+    console.error("Failed to search entries by name:", error);
+    throw new Error("Failed to search entries.");
+  } finally {
+    client.release();
   }
 }

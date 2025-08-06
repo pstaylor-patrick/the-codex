@@ -1,6 +1,6 @@
 import { PageContainer } from '@/components/layout/PageContainer';
 import { ExiconClientPageContent } from './ExiconClientPageContent';
-import { fetchAllEntries } from '@/lib/api';
+import { fetchAllEntries, getEntryByIdFromDatabase } from '@/lib/api';
 import type { ExiconEntry, AnyEntry, Tag } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -10,23 +10,10 @@ export const metadata = {
   description: 'Explore F3 exercises in the Exicon.',
 };
 
-async function getExiconEntries() {
-  try {
-    const allEntries: AnyEntry[] = await fetchAllEntries();
-
-
-
-    const exiconEntries: ExiconEntry[] = allEntries.filter(
-      (entry): entry is ExiconEntry => entry.type === 'exicon'
-    );
-
-
-    return { exiconEntries, allEntries };
-  } catch (error) {
-    console.error('❌ Runtime Data Fetching Error: Could not fetch exicon entries:', error);
-    throw new Error('Failed to fetch exicon entries at runtime.');
-  }
-}
+const getUniqueMentionedIds = (entries: AnyEntry[]): string[] => {
+  const allMentionedIds = entries.flatMap(entry => entry.mentionedEntries || []);
+  return Array.from(new Set(allMentionedIds));
+};
 
 function coerceTagsToValidTagArray(tags: unknown): Tag[] {
   if (Array.isArray(tags)) {
@@ -67,63 +54,68 @@ function normalizeAliases(aliases: unknown, entryId: string): { id: string; name
     : [];
 }
 
-function createResolvedMentionsData(mentionedEntries: string[], allEntries: AnyEntry[]): Record<string, AnyEntry> {
-  const entryMapById = new Map<string, AnyEntry>();
-  allEntries.forEach(entry => {
-    entryMapById.set(entry.id, entry);
-  });
-
-  const resolvedMentions: Record<string, AnyEntry> = {};
-
-
-  // Resolve mentions using mentionedEntries
-  mentionedEntries.forEach(entryId => {
-    const entry = entryMapById.get(entryId);
-    if (entry) {
-      resolvedMentions[entry.name] = entry;
-      entry.aliases?.forEach(alias => {
-        resolvedMentions[alias.name] = entry;
-      });
-    }
-  });
-
-
-  return resolvedMentions;
-}
-
 export default async function ExiconPage() {
-  const { exiconEntries, allEntries } = await getExiconEntries();
 
-  const processedEntries = exiconEntries.map((entry) => {
-    const processedTags = coerceTagsToValidTagArray(entry.tags);
-    const normalizedAliases = normalizeAliases(entry.aliases, entry.id);
-    const mentionedEntries = entry.mentionedEntries || [];
+  const allEntries = await fetchAllEntries();
+
+  const exiconEntries = allEntries.filter(
+    (entry): entry is ExiconEntry => entry.type === 'exicon'
+  );
+
+  let enrichedEntries: ExiconEntry[] = exiconEntries;
+  let allAvailableTags: Tag[] = [];
+
+  try {
+
+    const uniqueMentionedIds = getUniqueMentionedIds(exiconEntries);
 
 
-    const resolvedMentionsData = createResolvedMentionsData(mentionedEntries, allEntries);
+    const mentionPromises = uniqueMentionedIds.map(id => getEntryByIdFromDatabase(id));
+    const mentionedEntryResults = await Promise.all(mentionPromises);
 
-    return {
-      ...entry,
-      tags: processedTags,
-      aliases: normalizedAliases,
-      mentionedEntries,
-      resolvedMentionsData,
-    };
-  });
 
-  const uniqueTags = new Map<string, Tag>();
-  processedEntries.forEach(entry => {
-    entry.tags?.forEach(tag => {
-      if (!uniqueTags.has(tag.id)) {
-        uniqueTags.set(tag.id, tag);
+    const resolvedMentionsData: Record<string, AnyEntry> = {};
+    mentionedEntryResults.forEach(entry => {
+      if (entry) {
+        resolvedMentionsData[entry.id] = entry;
       }
     });
-  });
-  const allAvailableTags: Tag[] = Array.from(uniqueTags.values());
+
+
+    enrichedEntries = exiconEntries.map((entry) => {
+      const processedTags = coerceTagsToValidTagArray(entry.tags);
+      const normalizedAliases = normalizeAliases(entry.aliases, entry.id);
+
+      return {
+        ...entry,
+        tags: processedTags,
+        aliases: normalizedAliases,
+        resolvedMentionsData,
+      };
+    });
+
+    const uniqueTags = new Map<string, Tag>();
+    enrichedEntries.forEach(entry => {
+      entry.tags?.forEach(tag => {
+        if (!uniqueTags.has(tag.id)) {
+          uniqueTags.set(tag.id, tag);
+        }
+      });
+    });
+    allAvailableTags = Array.from(uniqueTags.values());
+
+  } catch (error) {
+    console.error("Failed to fetch and enrich Exicon entries on the server:", error);
+    enrichedEntries = exiconEntries;
+    allAvailableTags = [];
+  }
 
   return (
     <PageContainer>
-      <ExiconClientPageContent initialEntries={processedEntries} allTags={allAvailableTags} />
+      <ExiconClientPageContent
+        initialEntries={enrichedEntries}
+        allTags={allAvailableTags}
+      />
     </PageContainer>
   );
 }
