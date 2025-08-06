@@ -26,6 +26,7 @@ export async function searchEntriesByName(query: string): Promise<EntryWithRefer
           e.type,
           e.aliases,
           e.video_link,
+          e.mentioned_entries,
           ARRAY_AGG(DISTINCT t.id || '::' || t.name) FILTER (WHERE t.id IS NOT NULL) AS tags_array
        FROM
           entries e
@@ -36,7 +37,7 @@ export async function searchEntriesByName(query: string): Promise<EntryWithRefer
        WHERE
           LOWER(e.title) LIKE $1 OR LOWER(e.aliases::text) LIKE $1
        GROUP BY
-          e.id, e.title, e.definition, e.type, e.aliases, e.video_link
+          e.id, e.title, e.definition, e.type, e.aliases, e.video_link, e.mentioned_entries
        ORDER BY
           e.title
        LIMIT 10`,
@@ -52,6 +53,7 @@ export async function searchEntriesByName(query: string): Promise<EntryWithRefer
     client.release();
   }
 }
+
 
 /**
  * Submits a new entry suggestion to the database.

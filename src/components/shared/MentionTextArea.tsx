@@ -53,40 +53,21 @@ export function MentionTextArea({ value, onChange, searchEntries, placeholder, r
     else setResults([]);
   }, [query, showAutocomplete, debouncedSearch]);
 
-  const extractMentionsFromText = useCallback((text: string) => {
-    const parts = text.split('@');
-    const mentions: string[] = [];
-    
-    for (let i = 1; i < parts.length; i++) {
-      const part = parts[i];
-      const match = part.match(/^([A-Za-z0-9][^@]*?)(?=\s+[a-z]|\s*$|$)/);
-      if (match) {
-        const mentionName = match[1].trim();
-        if (mentionName) {
-          mentions.push(mentionName.toLowerCase());
-        }
-      }
-    }
-    
-    return mentions;
-  }, []);
 
   useEffect(() => {
-    const currentMentionNamesInText = extractMentionsFromText(value);
+    setMentions(prevMentions => {
+      const stillMentioned = prevMentions.filter(m => value.includes(`@${m.name}`));
 
-    setMentions((prev) => {
-      const stillMentioned = prev.filter((m) =>
-        currentMentionNamesInText.includes(m.name.toLowerCase())
-      );
-      
-      if (stillMentioned.length !== prev.length || 
-          !stillMentioned.every(m => prev.some(p => p.id === m.id))) {
+      const hasChanged = stillMentioned.length !== prevMentions.length ||
+        !stillMentioned.every(m => prevMentions.some(p => p.id === m.id));
+
+      if (hasChanged) {
         onMentionsChange?.(stillMentioned.map(({ id, name }) => ({ id, name })));
       }
-      
       return stillMentioned;
     });
-  }, [value, onMentionsChange, extractMentionsFromText]);
+  }, [value, onMentionsChange]);
+
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
@@ -96,13 +77,11 @@ export function MentionTextArea({ value, onChange, searchEntries, placeholder, r
 
     const textBeforeCursor = val.slice(0, cursorPos);
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-    
+
     if (lastAtIndex !== -1) {
       const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
-    
-      const spaceFollowedByLowercase = textAfterAt.match(/\s+[a-z]/);
-      
-      if (!spaceFollowedByLowercase && textAfterAt.length <= 50) {
+
+      if (!textAfterAt.includes(' ') && textAfterAt.length <= 50) {
         setQuery(textAfterAt);
         setShowAutocomplete(true);
       } else {
@@ -117,7 +96,7 @@ export function MentionTextArea({ value, onChange, searchEntries, placeholder, r
 
   const handleSelect = (entry: EntryWithReferences) => {
     if (!textareaRef.current) return;
-    
+
     const text = value;
     const pre = text.slice(0, cursor);
     const post = text.slice(cursor);
@@ -126,24 +105,21 @@ export function MentionTextArea({ value, onChange, searchEntries, placeholder, r
     const updated = replaced + post;
     const newCursor = replaced.length;
 
-    // Update state first
     setShowAutocomplete(false);
     setQuery('');
     setResults([]);
     setCursor(newCursor);
 
-    // Update the text value
     onChange(updated);
 
-    // Update mentions state
     setMentions((prev) => {
       const exists = prev.some((m) => m.id === entry.id);
       const next = exists ? prev : [...prev, { ...entry }];
-      
+
       if (!exists) {
         onMentionsChange?.(next.map(({ id, name }) => ({ id, name })));
       }
-      
+
       return next;
     });
 
@@ -157,59 +133,73 @@ export function MentionTextArea({ value, onChange, searchEntries, placeholder, r
 
   const renderFormatted = (text: string) => {
     const parts: React.ReactNode[] = [];
-    
 
-    const textParts = text.split('@');
-    if (textParts[0]) {
-      parts.push(textParts[0]);
-    }
-    
-    for (let i = 1; i < textParts.length; i++) {
-      const part = textParts[i];
-      const match = part.match(/^([A-Za-z0-9][^@]*?)(?=\s+[a-z]|\s*$|$)(.*)/);
-      
-      if (match) {
-        const mentionName = match[1].trim();
-        const remaining = match[2] || '';
-        
-        const mention = mentions.find(m => m.name.toLowerCase() === mentionName.toLowerCase());
 
-        parts.push(
-          <HoverCard key={`mention-${i}-${mentionName}`}>
-            <HoverCardTrigger asChild>
-              <span className="text-blue-600 underline cursor-pointer hover:bg-blue-50 dark:text-blue-400 px-1 rounded">
-                @{mentionName}
-              </span>
-            </HoverCardTrigger>
-            <HoverCardContent className="prose text-sm max-w-xs p-3">
-              {mention ? (
-                <>
-                  <p className="font-semibold text-foreground mb-1">{mention.name}</p>
-                  <CardDescription className="text-muted-foreground">
-                    {mention.description || 'No description available.'}
-                  </CardDescription>
-                  <a 
-                    href={`/entries/${mention.id}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="text-xs text-blue-700 hover:underline mt-2 block dark:text-blue-300"
-                  >
-                    View Entry Page
-                  </a>
-                </>
-              ) : (
-                <span className="text-gray-500">Mention not found in current selection.</span>
-              )}
-            </HoverCardContent>
-          </HoverCard>
-        );
-        
-        if (remaining) {
-          parts.push(remaining);
-        }
-      } else {
-        parts.push('@' + part);
+    const mentionOccurrences: {
+      startIndex: number;
+      endIndex: number;
+      mention: { id: string; name: string; description?: string; type?: string };
+    }[] = [];
+
+
+    mentions.forEach((mention) => {
+      let searchString = `@${mention.name}`;
+      let lastIndex = text.indexOf(searchString, 0);
+      while (lastIndex !== -1) {
+        mentionOccurrences.push({
+          startIndex: lastIndex,
+          endIndex: lastIndex + searchString.length,
+          mention,
+        });
+        lastIndex = text.indexOf(searchString, lastIndex + 1);
       }
+    });
+
+
+    mentionOccurrences.sort((a, b) => a.startIndex - b.startIndex);
+
+    let lastIndex = 0;
+
+    mentionOccurrences.forEach(({ startIndex, endIndex, mention }, i) => {
+      if (startIndex > lastIndex) {
+        parts.push(text.substring(lastIndex, startIndex));
+      }
+
+      parts.push(
+        <HoverCard key={`mention-${i}-${mention.id}`}>
+          <HoverCardTrigger asChild>
+            <span className="text-blue-600 underline cursor-pointer hover:bg-blue-50 dark:text-blue-400 px-1 rounded">
+              @{mention.name}
+            </span>
+          </HoverCardTrigger>
+          <HoverCardContent className="prose text-sm max-w-xs p-3">
+            {mention ? (
+              <>
+                <p className="font-semibold text-foreground mb-1">{mention.name}</p>
+                <CardDescription className="text-muted-foreground">
+                  {mention.description || 'No description available.'}
+                </CardDescription>
+                <a
+                  href={`/entries/${mention.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-700 hover:underline mt-2 block dark:text-blue-300"
+                >
+                  View Entry Page
+                </a>
+              </>
+            ) : (
+              <span className="text-gray-500">Mention not found in current selection.</span>
+            )}
+          </HoverCardContent>
+        </HoverCard>
+      );
+
+      lastIndex = endIndex;
+    });
+
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
     }
 
     return parts;
@@ -258,10 +248,10 @@ export function MentionTextArea({ value, onChange, searchEntries, placeholder, r
         <PopoverTrigger asChild>
           <span style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
         </PopoverTrigger>
-        <PopoverContent 
-          className="p-0 z-[9999] max-h-60 overflow-y-auto shadow-md border rounded-md bg-popover text-popover-foreground w-80" 
-          align="start" 
-          side="bottom" 
+        <PopoverContent
+          className="p-0 z-[9999] max-h-60 overflow-y-auto shadow-md border rounded-md bg-popover text-popover-foreground w-80"
+          align="start"
+          side="bottom"
           sideOffset={4}
           onOpenAutoFocus={(e) => {
 
@@ -305,11 +295,11 @@ export function MentionTextArea({ value, onChange, searchEntries, placeholder, r
                         {entry.description}
                       </span>
                     )}
-                    <a 
-                      href={`/entries/${entry.id}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-xs text-blue-700 hover:underline mt-1 dark:text-blue-300 group-hover:text-accent-foreground" 
+                    <a
+                      href={`/entries/${entry.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-700 hover:underline mt-1 dark:text-blue-300 group-hover:text-accent-foreground"
                       onClick={(e) => e.stopPropagation()}
                     >
                       View Entry

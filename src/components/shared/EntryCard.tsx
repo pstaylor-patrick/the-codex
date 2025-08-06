@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Pencil, Copy, ExternalLink, XCircle } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { SuggestionEditForm } from '@/components/submission/SuggestionEditForm';
 import { useToast } from '@/hooks/use-toast';
 import { getYouTubeEmbedUrl } from '@/lib/utils';
@@ -29,164 +29,124 @@ const renderDescriptionWithMentions = (
   resolvedMentionsData?: Record<string, AnyEntry>,
   colorVariant: 'default' | 'vibrant' = 'default'
 ) => {
-  if (!description) return <span>No description available.</span>;
-
-
-  const parts: (string | JSX.Element)[] = [];
-  
+  if (!description) {
+    return <span>No description available.</span>;
+  }
 
   const mentionColors = colorVariant === 'vibrant'
     ? [
-        'text-blue-600 hover:text-blue-700',
-        'text-purple-600 hover:text-purple-700',
-        'text-green-600 hover:text-green-700',
-        'text-orange-600 hover:text-orange-700',
-        'text-red-600 hover:text-red-700',
-        'text-teal-600 hover:text-teal-700',
-        'text-pink-600 hover:text-pink-700',
-        'text-indigo-600 hover:text-indigo-700'
-      ]
+      'text-blue-600 hover:text-blue-700',
+      'text-purple-600 hover:text-purple-700',
+      'text-green-600 hover:text-green-700',
+      'text-orange-600 hover:text-orange-700',
+      'text-red-600 hover:text-red-700',
+      'text-teal-600 hover:text-teal-700',
+      'text-pink-600 hover:text-pink-700',
+      'text-indigo-600 hover:text-indigo-700'
+    ]
     : [
-        'text-blue-500 hover:text-blue-600',
-        'text-purple-500 hover:text-purple-600',
-        'text-green-500 hover:text-green-600',
-        'text-orange-500 hover:text-orange-600',
-        'text-red-500 hover:text-red-600',
-        'text-teal-500 hover:text-teal-600'
-      ];
+      'text-blue-500 hover:text-blue-600',
+      'text-purple-500 hover:text-purple-600',
+      'text-green-500 hover:text-green-600',
+      'text-orange-500 hover:text-orange-600',
+      'text-red-500 hover:text-red-600',
+      'text-teal-500 hover:text-teal-600'
+    ];
 
-  if (!resolvedMentionsData || Object.keys(resolvedMentionsData).length === 0) {
-    return <span>{description}</span>;
-  }
+  const foundMentions: {
+    index: number;
+    text: string;
+    entry: AnyEntry;
+  }[] = [];
 
-  const mentionLookup: Array<{ 
-    name: string; 
-    entry: AnyEntry; 
-    priority: number;
-  }> = [];
-  
-  Object.values(resolvedMentionsData).forEach(entry => {
-    mentionLookup.push({ 
-      name: entry.name, 
-      entry, 
-      priority: entry.name.length 
-    });
-    
+  if (resolvedMentionsData) {
+    Object.values(resolvedMentionsData).forEach(entry => {
+      let searchString = `@${entry.name}`;
+      let lastIndex = description.indexOf(searchString, 0);
+      while (lastIndex !== -1) {
+        foundMentions.push({ index: lastIndex, text: searchString, entry });
+        lastIndex = description.indexOf(searchString, lastIndex + 1);
+      }
 
-    entry.aliases?.forEach(alias => {
-      mentionLookup.push({ 
-        name: alias.name, 
-        entry, 
-        priority: alias.name.length 
+      entry.aliases?.forEach(alias => {
+        const aliasName = typeof alias === 'string' ? alias : alias.name;
+        searchString = `@${aliasName}`;
+        lastIndex = description.indexOf(searchString, 0);
+        while (lastIndex !== -1) {
+          foundMentions.push({ index: lastIndex, text: searchString, entry });
+          lastIndex = description.indexOf(searchString, lastIndex + 1);
+        }
       });
     });
-  });
+  }
 
-  mentionLookup.sort((a, b) => b.priority - a.priority);
+  foundMentions.sort((a, b) => a.index - b.index);
 
-  const mentions: Array<{
-    start: number;
-    end: number;
-    mentionText: string;
-    entry: AnyEntry;
-  }> = [];
-
-  mentionLookup.forEach(({ name, entry }) => {
-    const pattern = new RegExp(`@(${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(?=\\s|[,.!?;:]|$|\\n)`, 'gi');
-    let match;
-    
-    while ((match = pattern.exec(description)) !== null) {
-      const start = match.index;
-      const end = start + match[0].length;
-      
-
-      const isOverlapping = mentions.some(existing => 
-        (start >= existing.start && start < existing.end) ||
-        (end > existing.start && end <= existing.end) ||
-        (start < existing.start && end > existing.end)
-      );
-      
-      if (!isOverlapping) {
-        mentions.push({
-          start,
-          end,
-          mentionText: match[0],
-          entry
-        });
-      }
-    }
-  });
-
-
-  mentions.sort((a, b) => a.start - b.start);
-
-
+  const parts: (string | JSX.Element)[] = [];
   let lastIndex = 0;
-  let mentionIndex = 0;
+  let mentionCount = 0;
 
-  mentions.forEach(({ start, end, mentionText, entry }) => {
-
-    if (start > lastIndex) {
-      parts.push(description.substring(lastIndex, start));
+  foundMentions.forEach((mention) => {
+    if (mention.index > lastIndex) {
+      parts.push(description.substring(lastIndex, mention.index));
     }
 
-    const colorClass = mentionColors[mentionIndex % mentionColors.length];
-
+    const colorClass = mentionColors[mentionCount % mentionColors.length];
     parts.push(
-      <HoverCard key={`mention-${start}-${mentionIndex}`} openDelay={200} closeDelay={100}>
+      <HoverCard key={`mention-${mention.index}-${mention.entry.id}`} openDelay={200} closeDelay={100}>
         <HoverCardTrigger asChild>
-          <span
-            className={`${colorClass} underline hover:no-underline cursor-pointer font-medium transition-colors duration-200`}
-          >
-            {mentionText}
-          </span>
+          <Link href={`/${mention.entry.type === 'exicon' ? 'exicon' : 'lexicon'}/${mention.entry.id}`}>
+            <span className={`${colorClass} underline hover:no-underline cursor-pointer font-medium transition-colors duration-200`}>
+              {mention.text}
+            </span>
+          </Link>
         </HoverCardTrigger>
         <HoverCardContent className="w-80 p-4" side="top" align="center">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-primary">{entry.name}</h4>
+              <h4 className="text-sm font-semibold text-primary">{mention.entry.name}</h4>
               <Badge variant="outline" className="text-xs">
-                {entry.type === 'exicon' ? 'Exercise' : 'Term'}
+                {mention.entry.type === 'exicon' ? 'Exercise' : 'Term'}
               </Badge>
             </div>
 
-            {entry.aliases && entry.aliases.length > 0 && (
+            {mention.entry.aliases && mention.entry.aliases.length > 0 && (
               <p className="text-xs text-muted-foreground">
-                Also: {entry.aliases
+                Also: {mention.entry.aliases
                   .map(alias => typeof alias === 'string' ? alias : alias.name)
                   .slice(0, 2)
                   .join(', ')}
-                {entry.aliases.length > 2 && '...'}
+                {mention.entry.aliases.length > 2 && '...'}
               </p>
             )}
 
             <p className="text-sm text-foreground leading-relaxed">
-              {entry.description
+              {mention.entry.description
                 ? (() => {
-                    const cleanDesc = entry.description.replace(/<[^>]*>/g, '').replace(/@[A-Za-z0-9\s_.-]+/g, '[ref]');
-                    return cleanDesc.length > 120
-                      ? `${cleanDesc.substring(0, 120)}...`
-                      : cleanDesc;
-                  })()
+                  const cleanDesc = mention.entry.description.replace(/<[^>]*>/g, '').replace(/@[A-Za-z0-9\s_.-]+/g, '[ref]');
+                  return cleanDesc.length > 120
+                    ? `${cleanDesc.substring(0, 120)}...`
+                    : cleanDesc;
+                })()
                 : 'No description available.'}
             </p>
 
-            {entry.type === 'exicon' && (entry as ExiconEntry).tags && (entry as ExiconEntry).tags.length > 0 && (
+            {mention.entry.type === 'exicon' && (mention.entry as ExiconEntry).tags && (mention.entry as ExiconEntry).tags.length > 0 && (
               <div className="flex flex-wrap gap-1 pt-1">
-                {(entry as ExiconEntry).tags.slice(0, 3).map(tag => (
+                {(mention.entry as ExiconEntry).tags.slice(0, 3).map(tag => (
                   <Badge key={tag.id} variant="secondary" className="text-xs px-1 py-0">
                     {tag.name}
                   </Badge>
                 ))}
-                {(entry as ExiconEntry).tags.length > 3 && (
-                  <span className="text-xs text-muted-foreground">+{(entry as ExiconEntry).tags.length - 3}</span>
+                {(mention.entry as ExiconEntry).tags.length > 3 && (
+                  <span className="text-xs text-muted-foreground">+{(mention.entry as ExiconEntry).tags.length - 3}</span>
                 )}
               </div>
             )}
 
             <div className="pt-2 border-t">
               <Link
-                href={entry.type === 'exicon' ? `/exicon/${entry.id}` : `/lexicon/${entry.id}`}
+                href={mention.entry.type === 'exicon' ? `/exicon/${mention.entry.id}` : `/lexicon/${mention.entry.id}`}
                 className="text-xs text-blue-500 hover:text-blue-600 hover:underline"
               >
                 View full entry →
@@ -196,47 +156,43 @@ const renderDescriptionWithMentions = (
         </HoverCardContent>
       </HoverCard>
     );
-
-    mentionIndex++;
-    lastIndex = end;
+    mentionCount++;
+    lastIndex = mention.index + mention.text.length;
   });
 
-
-  if (lastIndex < description.length) {
-    parts.push(description.substring(lastIndex));
+  const textAfter = description.substring(lastIndex);
+  if (textAfter) {
+    parts.push(textAfter);
   }
 
-  return parts.length > 0 ? parts : <span>{description}</span>;
-}
+  return parts;
+};
 
 export function EntryCard({ entry }: EntryCardProps) {
+
+
   const { toast } = useToast();
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSuggestEditFormOpen, setIsSuggestEditFormOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [previewDescriptionContent, setPreviewDescriptionContent] = useState('');
-  const [showGradient, setShowGradient] = useState(false);
+
+  const previewDescriptionContent = useMemo(() => {
+    if (!entry.description) return '';
+    const needsTruncation = entry.description.length > MAX_DESC_LENGTH_PREVIEW;
+    if (needsTruncation) {
+      return entry.description.substring(0, MAX_DESC_LENGTH_PREVIEW) + '...';
+    }
+    return entry.description;
+  }, [entry.description]);
+
+  const showGradient = useMemo(() => {
+    if (!entry.description) return false;
+    return entry.description.length > MAX_DESC_LENGTH_PREVIEW;
+  }, [entry.description]);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
-
-  useEffect(() => {
-    if (isClient) {
-      const baseDescription = entry.description || '';
-      const textContent = baseDescription.replace(/<[^>]*>/g, '').replace(/@[A-Za-z0-9\s_.-]+/g, '[ref]');
-      const needsTruncation = textContent.length > MAX_DESC_LENGTH_PREVIEW;
-
-      if (needsTruncation) {
-        const truncatedDesc = baseDescription.substring(0, MAX_DESC_LENGTH_PREVIEW) + '...';
-        setPreviewDescriptionContent(truncatedDesc);
-        setShowGradient(true);
-      } else {
-        setPreviewDescriptionContent(baseDescription);
-        setShowGradient(false);
-      }
-    }
-  }, [isClient, entry.description, entry.name]);
 
   const fullDescription = entry.description || '';
 
@@ -313,7 +269,13 @@ export function EntryCard({ entry }: EntryCardProps) {
 
           <CardContent className="flex-grow space-y-3">
             <div className="prose prose-sm max-w-none text-foreground break-words relative max-h-[4.5rem] overflow-hidden">
-              <div>{renderDescriptionWithMentions(previewDescriptionContent, entry.resolvedMentionsData, 'default')}</div>
+              <div>
+                {renderDescriptionWithMentions(
+                  previewDescriptionContent,
+                  entry.resolvedMentionsData,
+                  'default'
+                )}
+              </div>
               {showGradient && (
                 <div className="absolute bottom-0 left-0 w-full h-6 bg-gradient-to-t from-card via-card/80 to-transparent" />
               )}
@@ -348,7 +310,11 @@ export function EntryCard({ entry }: EntryCardProps) {
         <div className="flex-grow overflow-y-auto space-y-4 pr-3 py-2">
           <DialogDescription asChild>
             <div className="prose prose-base max-w-none text-foreground break-words leading-relaxed">
-              {renderDescriptionWithMentions(fullDescription, entry.resolvedMentionsData, 'vibrant')}
+              {renderDescriptionWithMentions(
+                fullDescription,
+                entry.resolvedMentionsData,
+                'vibrant'
+              )}
             </div>
           </DialogDescription>
 

@@ -1,8 +1,8 @@
-// src/lib/firebaseAdmin.ts (or similar server-side file)
+// src/lib/firebaseAdmin.ts
 import * as admin from 'firebase-admin';
 
 if (!admin.apps.length) {
-  const serviceAccountKeyJson = process.env.MY_APP_FIREBASE_ADMIN_KEY; // <-- Changed this line
+  const serviceAccountKeyJson = process.env.MY_APP_FIREBASE_ADMIN_KEY;
 
   if (!serviceAccountKeyJson) {
     console.error('❌ CRITICAL: MY_APP_FIREBASE_ADMIN_KEY environment variable is not set.');
@@ -15,7 +15,6 @@ if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
-    console.log('✅ Firebase Admin SDK initialized successfully.');
   } catch (error) {
     console.error('❌ Error initializing Firebase Admin SDK:', error);
     throw new Error('Failed to parse Firebase Admin SDK key or initialize Admin SDK.');

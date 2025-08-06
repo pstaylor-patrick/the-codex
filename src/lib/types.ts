@@ -8,7 +8,7 @@ export interface Tag {
 }
 
 export interface Alias {
-  id?: string; 
+  id?: string;
   name: string;
 }
 
@@ -44,8 +44,11 @@ export interface LexiconEntry extends BaseEntry {
 export type AnyEntry = ExiconEntry | LexiconEntry;
 
 export type EntryWithReferences = AnyEntry & {
+  references?: ReferencedEntry[];
   referencedBy?: ReferencedEntry[];
+  resolvedMentionsData?: Record<string, AnyEntry>;
 };
+
 
 export type FilterLogic = 'AND' | 'OR';
 
@@ -83,10 +86,9 @@ export interface EditEntrySuggestionData {
 
 
 // This is the core structure stored in the `user_submissions` table.
-// T is the *payload* type (NewEntrySuggestionData or EditEntrySuggestionData)
 export interface UserSubmissionBase<T = NewEntrySuggestionData | EditEntrySuggestionData> {
   id: number;
-  submissionType: 'new' | 'edit'; 
+  submissionType: 'new' | 'edit';
   data: T;
   submitterName?: string;
   submitterEmail?: string;
