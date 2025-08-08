@@ -1,0 +1,5 @@
+# apphosting.yaml
+runConfig:
+  env:
+    - variable: DATABASE_URL
+      secret: client-database-url
