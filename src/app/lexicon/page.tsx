@@ -1,5 +1,5 @@
 // app/lexicon/page.tsx
-
+export const dynamic = 'force-dynamic';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { LexiconClientPageContent } from './LexiconClientPageContent';
 import { fetchAllEntries, getEntryByIdFromDatabase } from '@/lib/api';
