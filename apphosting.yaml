@@ -12,7 +12,7 @@ env:
   # Grant access to secrets in Cloud Secret Manager.
   # Make sure your secret is created: gcloud secrets create client-database-url --data="your-connection-string"
   - variable: DATABASE_URL
-    secret: client-database-url
+    secret: DATABASE_URL
     availability:
       - BUILD
       - RUNTIME
