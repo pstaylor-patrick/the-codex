@@ -1,5 +1,7 @@
 # apphosting.yaml
 runConfig:
-  env:
-    - variable: DATABASE_URL
-      secret: client-database-url
+  minInstances: 0
+  maxInstances: 2
+env:
+  - variable: DATABASE_URL
+    value: client-database-url
