@@ -5,6 +5,15 @@ import { Pool, type PoolClient } from 'pg';
 const connectionString = process.env.DATABASE_URL;
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Debug logging
+console.log('🔍 Environment debug info:');
+console.log('- NODE_ENV:', process.env.NODE_ENV);
+console.log('- DATABASE_URL available:', !!connectionString);
+console.log('- DATABASE_URL length:', connectionString?.length || 0);
+console.log('- DATABASE_URL starts with postgresql:', connectionString?.startsWith('postgresql://'));
+console.log('- All env vars starting with DATABASE:', Object.keys(process.env).filter(k => k.includes('DATABASE')));
+
+// More comprehensive build-time detection for Firebase App Hosting
 const isBuildTime =
   process.env.NEXT_PHASE === 'phase-production-build' ||
   process.env.NODE_ENV === 'development' && !connectionString ||
@@ -22,9 +31,10 @@ if (!isBuildTime && connectionString && connectionString !== 'client-database-ur
   pool = new Pool({
     connectionString,
     ssl,
-
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
+    // Add connection pool settings for better reliability
+    max: 10, // maximum number of clients in the pool
+    idleTimeoutMillis: 30000, // how long a client is allowed to remain idle
+    connectionTimeoutMillis: 5000, // how long to wait for a connection
   });
 
   pool.on('connect', () => {
@@ -35,6 +45,7 @@ if (!isBuildTime && connectionString && connectionString !== 'client-database-ur
     console.error('❌ Unexpected error on idle PostgreSQL client:', err);
   });
 
+  // Test the connection on startup
   pool.connect()
     .then(client => {
       console.log('✅ Database connection pool initialized successfully');
@@ -50,6 +61,8 @@ if (!isBuildTime && connectionString && connectionString !== 'client-database-ur
   console.error('❌ CRITICAL: DATABASE_URL is not set in the environment.');
 } else if (connectionString === 'client-database-url') {
   console.error('❌ CRITICAL: DATABASE_URL appears to be a placeholder value, not an actual connection string.');
+  console.error('This usually means the secret "client-database-url" does not exist in Google Cloud Secret Manager.');
+  console.error('Please create the secret with: gcloud secrets create client-database-url --data="your-actual-connection-string"');
 }
 
 /**
@@ -78,6 +91,9 @@ export async function getClient(): Promise<PoolClient> {
   }
 }
 
+/**
+ * Gracefully close the database pool (useful for cleanup)
+ */
 export async function closePool(): Promise<void> {
   if (pool) {
     console.log('🔌 Closing database connection pool...');
