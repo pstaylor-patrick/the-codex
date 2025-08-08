@@ -55,63 +55,105 @@ function normalizeAliases(aliases: unknown, entryId: string): { id: string; name
 }
 
 export default async function ExiconPage() {
+  // Add detailed error logging
+  console.log('🔍 ExiconPage: Starting render');
+  console.log('🔍 DATABASE_URL available:', !!process.env.DATABASE_URL);
+  console.log('🔍 NODE_ENV:', process.env.NODE_ENV);
 
-  const allEntries = await fetchAllEntries();
-
-  const exiconEntries = allEntries.filter(
-    (entry): entry is ExiconEntry => entry.type === 'exicon'
-  );
-
-  let enrichedEntries: ExiconEntry[] = exiconEntries;
+  let allEntries: AnyEntry[] = [];
+  let enrichedEntries: ExiconEntry[] = [];
   let allAvailableTags: Tag[] = [];
+  let errorMessage = '';
 
   try {
+    console.log('🔍 ExiconPage: Fetching all entries...');
+    allEntries = await fetchAllEntries();
+    console.log('🔍 ExiconPage: Fetched', allEntries.length, 'entries');
 
-    const uniqueMentionedIds = getUniqueMentionedIds(exiconEntries);
+    const exiconEntries = allEntries.filter(
+      (entry): entry is ExiconEntry => entry.type === 'exicon'
+    );
+    console.log('🔍 ExiconPage: Found', exiconEntries.length, 'exicon entries');
 
+    try {
+      const uniqueMentionedIds = getUniqueMentionedIds(exiconEntries);
+      console.log('🔍 ExiconPage: Found', uniqueMentionedIds.length, 'unique mentions');
 
-    const mentionPromises = uniqueMentionedIds.map(id => getEntryByIdFromDatabase(id));
-    const mentionedEntryResults = await Promise.all(mentionPromises);
+      const mentionPromises = uniqueMentionedIds.map(id => getEntryByIdFromDatabase(id));
+      const mentionedEntryResults = await Promise.all(mentionPromises);
 
-
-    const resolvedMentionsData: Record<string, AnyEntry> = {};
-    mentionedEntryResults.forEach(entry => {
-      if (entry) {
-        resolvedMentionsData[entry.id] = entry;
-      }
-    });
-
-
-    enrichedEntries = exiconEntries.map((entry) => {
-      const processedTags = coerceTagsToValidTagArray(entry.tags);
-      const normalizedAliases = normalizeAliases(entry.aliases, entry.id);
-
-      return {
-        ...entry,
-        tags: processedTags,
-        aliases: normalizedAliases,
-        resolvedMentionsData,
-      };
-    });
-
-    const uniqueTags = new Map<string, Tag>();
-    enrichedEntries.forEach(entry => {
-      entry.tags?.forEach(tag => {
-        if (!uniqueTags.has(tag.id)) {
-          uniqueTags.set(tag.id, tag);
+      const resolvedMentionsData: Record<string, AnyEntry> = {};
+      mentionedEntryResults.forEach(entry => {
+        if (entry) {
+          resolvedMentionsData[entry.id] = entry;
         }
       });
-    });
-    allAvailableTags = Array.from(uniqueTags.values());
 
-  } catch (error) {
-    console.error("Failed to fetch and enrich Exicon entries on the server:", error);
-    enrichedEntries = exiconEntries;
-    allAvailableTags = [];
+      enrichedEntries = exiconEntries.map((entry) => {
+        const processedTags = coerceTagsToValidTagArray(entry.tags);
+        const normalizedAliases = normalizeAliases(entry.aliases, entry.id);
+
+        return {
+          ...entry,
+          tags: processedTags,
+          aliases: normalizedAliases,
+          resolvedMentionsData,
+        };
+      });
+
+      const uniqueTags = new Map<string, Tag>();
+      enrichedEntries.forEach(entry => {
+        entry.tags?.forEach(tag => {
+          if (!uniqueTags.has(tag.id)) {
+            uniqueTags.set(tag.id, tag);
+          }
+        });
+      });
+      allAvailableTags = Array.from(uniqueTags.values());
+
+      console.log('🔍 ExiconPage: Successfully enriched entries');
+
+    } catch (enrichmentError) {
+      console.error("❌ ExiconPage: Failed to enrich entries:", enrichmentError);
+      // Fallback to basic entries without enrichment
+      enrichedEntries = exiconEntries.map(entry => ({
+        ...entry,
+        tags: coerceTagsToValidTagArray(entry.tags),
+        aliases: normalizeAliases(entry.aliases, entry.id),
+      }));
+      allAvailableTags = [];
+      errorMessage = 'Some data enrichment failed, but basic entries are available.';
+    }
+
+  } catch (fetchError) {
+    console.error("❌ ExiconPage: Failed to fetch entries:", fetchError);
+    errorMessage = `Failed to load entries: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`;
+
+
+    // Return minimal fallback
+    return (
+      <PageContainer>
+        <div className="text-center py-12">
+          <h1 className="text-3xl font-bold mb-4">F3 Exicon</h1>
+          <p className="text-red-500 mb-4">Error loading data: {errorMessage}</p>
+          <p className="text-muted-foreground">
+            DATABASE_URL available: {process.env.DATABASE_URL ? 'Yes' : 'No'}
+          </p>
+        </div>
+      </PageContainer>
+    );
   }
+
+  console.log('🔍 ExiconPage: Rendering with', enrichedEntries.length, 'entries');
 
   return (
     <PageContainer>
+      {errorMessage && (
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
+          <p className="font-bold">Warning</p>
+          <p>{errorMessage}</p>
+        </div>
+      )}
       <ExiconClientPageContent
         initialEntries={enrichedEntries}
         allTags={allAvailableTags}
