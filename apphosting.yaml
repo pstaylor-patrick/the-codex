@@ -1,7 +1,6 @@
 # apphosting.yaml
 runConfig:
   env:
-  env:
     - variable: DATABASE_URL
       secret: client-database-url
     - variable: MY_APP_FIREBASE_ADMIN_KEY
