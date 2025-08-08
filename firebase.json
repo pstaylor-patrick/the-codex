@@ -1,6 +1,7 @@
 {
   "apphosting": {
-    "backendId": "studio",
-    "rootDir": "."
+    "backendId": "the-codex",
+    "rootDir": ".",
+    "alwaysDeployFromSource": true
   }
 }
