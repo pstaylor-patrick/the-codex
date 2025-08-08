@@ -3,20 +3,16 @@
 runConfig:
   minInstances: 0
   # maxInstances: 100
-  # concurrency: 8
+  # concurrency: 80
   # cpu: 1
   # memoryMiB: 512
 
 # Environment variables and secrets.
 env:
-  # Configure environment variables.
-  # See https://firebase.google.com/docs/app-hosting/configure#user-defined-environment
+  # Grant access to secrets in Cloud Secret Manager.
+  # Make sure your secret is created: gcloud secrets create client-database-url --data="your-connection-string"
   - variable: DATABASE_URL
     secret: client-database-url
     availability:
+      - BUILD
       - RUNTIME
-
-  # Grant access to secrets in Cloud Secret Manager.
-  # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
-  # - variable: MY_SECRET
-  #   secret: mySecretRef
