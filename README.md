@@ -1,6 +1,6 @@
 # F3 Codex App
 
-The F3 Codex App is the home for the F3 Exicon and Lexicon, replacing the legacy version. This web-based application provides a comprehensive resource management and community platform for discovering, reviewing, and managing these essential F3-specific exicon and lexicon resources.
+The F3 Codex App is the home for the F3 Exicon and Lexicon, replacing the legacy version. This web-based application provides a comprehensive resource management and community platform for discovering, reviewing, and managing these essential F3 specific exicon and lexicon resources.
 
 ### Key Features
 
