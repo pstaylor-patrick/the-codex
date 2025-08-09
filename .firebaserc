@@ -1,6 +1,7 @@
 {
   "projects": {
-    "the_codex": "f3-codex"
+    "the_codex": "f3-codex",
+    "default": "f3-the-codex"
   },
   "targets": {},
   "etags": {}
