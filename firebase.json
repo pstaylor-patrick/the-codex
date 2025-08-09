@@ -1,7 +1,7 @@
 {
   "apphosting": [
     {
-      "backendId": "the-codex",
+      "backendId": "the-codex--f3-the-codex",
       "rootDir": "/",
       "ignore": [
         "node_modules",
