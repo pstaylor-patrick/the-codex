@@ -1,7 +1,15 @@
 {
-  "apphosting": {
-    "backendId": "the-codex--f3-the-codex",
-    "rootDir": ".",
-    "alwaysDeployFromSource": true
-  }
+  "apphosting": [
+    {
+      "backendId": "the-codex",
+      "rootDir": "/",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "functions"
+      ]
+    }
+  ]
 }
