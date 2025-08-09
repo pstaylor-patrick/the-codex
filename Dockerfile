@@ -11,11 +11,17 @@ RUN npm install
 # Copy the rest of the source code
 COPY . .
 
-# Build the Next.js app
-RUN npm run build
-
 # Expose the port the app will run on
 EXPOSE 3000
+
+# Use ARG to accept a build-time argument for the database URL
+ARG DATABASE_URL
+
+# Use ENV to set the environment variable inside the container
+ENV DATABASE_URL=$DATABASE_URL
+
+# Build the Next.js app
+RUN npm run build
 
 # Start the Next.js app
 CMD ["npm", "start"]
