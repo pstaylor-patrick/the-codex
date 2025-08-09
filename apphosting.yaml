@@ -1,7 +1,7 @@
 runConfig:
   minInstances: 0
-  invoker:
-    members: []
+  # Try to preserve existing IAM configuration
+  preserveExistingTraffic: true
 env:
   - variable: DATABASE_URL
     secret: client-database-url
