@@ -1,13 +1,16 @@
 runConfig:
   minInstances: 0
+  # Preserve current public access to avoid IAM policy conflicts
+  invoker:
+    mode: "ALLOW_ALL"
 env:
   - variable: DATABASE_URL
-    secret: client-database-url
+    secret: projects/345896360828/secrets/client-database-url/versions/1
     availability:
       - BUILD
       - RUNTIME
   - variable: FIREBASE_ADMIN_SDK_KEY
-    secret: firebase-admin-sdk-key
+    secret: projects/345896360828/secrets/firebase-admin-sdk-key/versions/1
     availability:
       - BUILD
       - RUNTIME
