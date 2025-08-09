@@ -1,5 +1,7 @@
 runConfig:
   minInstances: 0
+  invoker:
+    members: []
 env:
   - variable: DATABASE_URL
     secret: client-database-url
