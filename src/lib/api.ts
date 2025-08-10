@@ -787,61 +787,137 @@ export const updateSubmissionStatusInDatabase = async (
 
 
 export async function applyApprovedSubmissionToDatabase(submission: UserSubmissionBase<any>): Promise<EntryWithReferences> {
+  if (submission.submissionType === 'new') {
+    const newEntryData = submission.data as NewEntrySuggestionData & { mentionedEntries?: string[] };
+
+    try {
+      const createdEntry = await createEntryInDatabase(newEntryData);
+
+      const client = await getClient();
+      try {
+        await client.query(
+          'UPDATE user_submissions SET status = $1, updated_at = NOW() WHERE id = $2',
+          ['approved', submission.id]
+        );
+      } finally {
+        client.release();
+      }
+
+      return createdEntry;
+    } catch (error) {
+      console.error('Error creating entry from new submission:', error);
+      throw error;
+    }
+  }
+
   const client = await getClient();
   try {
     await client.query('BEGIN');
 
-    let updatedEntry: AnyEntry;
-    const submissionData = submission.data;
+    const editEntryData = submission.data as EditEntrySuggestionData;
+    const currentEntry = await getEntryByIdFromDatabase(editEntryData.entryId);
 
-    if (submission.submissionType === 'new') {
-      const newEntryData = submissionData as NewEntrySuggestionData & { mentionedEntries?: string[] };
-
-
-
-      updatedEntry = await createEntryInDatabase(newEntryData);
-    } else if (submission.submissionType === 'edit') {
-      const editEntryData = submissionData as EditEntrySuggestionData;
-      const currentEntry = await getEntryByIdFromDatabase(editEntryData.entryId);
-
-      if (!currentEntry) {
-        throw new Error(`Original entry with ID ${editEntryData.entryId} not found for edit submission.`);
-      }
-
-      const changes = editEntryData.changes;
-      const entryToUpdate: AnyEntry = { ...currentEntry };
-
-      if (changes.name !== undefined) entryToUpdate.name = changes.name;
-      if (changes.description !== undefined) entryToUpdate.description = changes.description;
-      if (changes.aliases !== undefined) {
-        entryToUpdate.aliases = changes.aliases.map(name => ({ name }));
-      }
-      if (changes.entryType !== undefined) entryToUpdate.type = changes.entryType;
-      if (changes.videoLink !== undefined && entryToUpdate.type === 'exicon') {
-        (entryToUpdate as ExiconEntry).videoLink = changes.videoLink;
-      }
-      if (changes.tags !== undefined && entryToUpdate.type === 'exicon') {
-        (entryToUpdate as ExiconEntry).tags = changes.tags.map(name => ({ id: '', name }));
-      }
-      if (changes.mentionedEntries !== undefined) {
-        entryToUpdate.mentionedEntries = changes.mentionedEntries;
-      }
-
-      updatedEntry = await updateEntryInDatabase(entryToUpdate);
-    } else {
-      throw new Error(`Unknown submission type: ${submission.submissionType}`);
+    if (!currentEntry) {
+      throw new Error(`Original entry with ID ${editEntryData.entryId} not found for edit submission.`);
     }
 
-    await updateSubmissionStatusInDatabase(submission.id, 'approved');
+    const changes = editEntryData.changes;
+    const entryToUpdate: AnyEntry = { ...currentEntry };
+
+    if (changes.name !== undefined) entryToUpdate.name = changes.name;
+    if (changes.description !== undefined) entryToUpdate.description = changes.description;
+    if (changes.aliases !== undefined) {
+      entryToUpdate.aliases = changes.aliases.map(name => ({ name }));
+    }
+    if (changes.entryType !== undefined) entryToUpdate.type = changes.entryType;
+    if (changes.videoLink !== undefined && entryToUpdate.type === 'exicon') {
+      (entryToUpdate as ExiconEntry).videoLink = changes.videoLink;
+    }
+    if (changes.tags !== undefined && entryToUpdate.type === 'exicon') {
+      const tagNamesArray = Array.isArray(changes.tags) ? changes.tags : [];
+      const ensuredTags = await ensureTagsExist(client, tagNamesArray);
+      (entryToUpdate as ExiconEntry).tags = ensuredTags;
+    }
+    if (changes.mentionedEntries !== undefined) {
+      entryToUpdate.mentionedEntries = changes.mentionedEntries;
+    }
+
+    const { id, name, description, type } = entryToUpdate;
+    const videoLink = (type === 'exicon') ? (entryToUpdate as ExiconEntry).videoLink || null : null;
+
+    const aliasesToStore = Array.isArray(entryToUpdate.aliases)
+      ? entryToUpdate.aliases.map(alias => (typeof alias === 'string' ? { name: alias } : alias))
+      : [];
+    const aliasesJson = JSON.stringify(aliasesToStore.filter(a => a.name.trim() !== ''));
+
+    await client.query(
+      'UPDATE entries SET title = $1, definition = $2, type = $3, aliases = $4, video_link = $5, updated_at = NOW() WHERE id = $6',
+      [name, description, type, aliasesJson, videoLink, id]
+    );
+
+    if (type === 'exicon') {
+      await client.query('DELETE FROM entry_tags WHERE entry_id = $1', [id]);
+      const tags = (entryToUpdate as ExiconEntry).tags;
+
+      if (tags && tags.length > 0) {
+        const ensuredTags = await ensureTagsExist(client, tags.map(t => t.name));
+        const tagIds = ensuredTags.map(t => t.id).filter(Boolean);
+        if (tagIds.length > 0) {
+          const entryTagValues = tagIds.map(tagId => `('${id}', '${tagId}')`).join(',');
+          await client.query(`INSERT INTO entry_tags (entry_id, tag_id) VALUES ${entryTagValues} ON CONFLICT (entry_id, tag_id) DO NOTHING`);
+        }
+      }
+    }
+
+    let mentionedEntryIds: string[] = [];
+    if (entryToUpdate.mentionedEntries && entryToUpdate.mentionedEntries.length > 0) {
+      mentionedEntryIds = entryToUpdate.mentionedEntries;
+    } else {
+      const mentionRegex = /@([A-Za-z0-9][A-Za-z0-9\s_.-]*[A-Za-z0-9])(?=\s|$|[,.!?;:])/g;
+      const mentionedNames = [...new Set(
+        Array.from(description.matchAll(mentionRegex)).map(match => match[1].trim())
+      )];
+
+      const resolvedReferencesPromises = mentionedNames.map(async (name) => {
+        const res = await client.query('SELECT id::text FROM entries WHERE LOWER(title) = LOWER($1)', [name]);
+        return res.rows.length > 0 ? res.rows[0].id : null;
+      });
+
+      const resolvedIds = (await Promise.all(resolvedReferencesPromises)).filter(Boolean) as string[];
+      mentionedEntryIds = resolvedIds;
+    }
+
+    await client.query(
+      'UPDATE entries SET mentioned_entries = $1 WHERE id = $2',
+      [JSON.stringify(mentionedEntryIds), id]
+    );
+
+    await client.query('DELETE FROM entry_references WHERE source_entry_id = $1', [id]);
+    for (const targetId of mentionedEntryIds) {
+      if (targetId !== id) {
+        await client.query(
+          `INSERT INTO entry_references (source_entry_id, target_entry_id)
+           VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [id, targetId]
+        );
+      }
+    }
+
+    await client.query(
+      'UPDATE user_submissions SET status = $1, updated_at = NOW() WHERE id = $2',
+      ['approved', submission.id]
+    );
 
     await client.query('COMMIT');
-    const finalEntry = await getEntryByIdFromDatabase(updatedEntry.id);
+
+    const finalEntry = await getEntryByIdFromDatabase(id);
     if (!finalEntry) {
       throw new Error('Failed to retrieve updated entry with references.');
     }
 
     return finalEntry;
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error applying approved submission to database:', error);
     throw error;
   } finally {
