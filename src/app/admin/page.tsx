@@ -1,8 +1,7 @@
-
-// src/app/admin/page.tsx
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Button } from '@/components/ui/button';
 import { EntryForm } from '@/components/admin/EntryForm';
@@ -43,6 +42,13 @@ import {
 
 export default function AdminPage() {
   const { toast } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [passwordInput, setPasswordInput] = useState('');
+
   const [isEntryFormOpen, setIsEntryFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<AnyEntry | undefined>(undefined);
 
@@ -65,6 +71,25 @@ export default function AdminPage() {
   const [filteredEntries, setFilteredEntries] = useState<AnyEntry[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage, setEntriesPerPage] = useState(20);
+
+
+  useEffect(() => {
+    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
+    const urlPassword = searchParams.get('password');
+
+    if (urlPassword === adminPassword) {
+      setIsAuthenticated(true);
+    } else {
+      setIsAuthenticated(false);
+    }
+    setIsLoadingAuth(false);
+  }, [searchParams]);
+
+  const handlePasswordSubmit = () => {
+    if (passwordInput) {
+      router.push(`/admin?password=${passwordInput}`);
+    }
+  };
 
   const refetchAllData = useCallback(async () => {
     setIsLoadingEntries(true);
@@ -91,6 +116,12 @@ export default function AdminPage() {
       setCurrentPage(1);
     }
   }, [toast]);
+
+  useEffect(() => {
+    if (isAuthenticated && !isLoadingAuth) {
+      refetchAllData();
+    }
+  }, [isAuthenticated, isLoadingAuth, refetchAllData]);
 
   useEffect(() => {
     const filtered = lexiconEntriesForDisplay.filter(entry => {
@@ -266,9 +297,49 @@ export default function AdminPage() {
     }
   };
 
-  useEffect(() => {
-    refetchAllData();
-  }, [refetchAllData]);
+  if (isLoadingAuth) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p className="text-xl text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-gray-900">
+        <Card className="w-[350px] shadow-lg">
+          <CardHeader className="text-center">
+            <ShieldCheck className="h-12 w-12 text-primary mx-auto mb-2" />
+            <CardTitle>Admin Access Required</CardTitle>
+            <CardDescription>Please enter the admin password to continue.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid w-full items-center gap-4">
+              <div className="flex flex-col space-y-1.5">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter password..."
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handlePasswordSubmit();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-center">
+            <Button onClick={handlePasswordSubmit}>Access Panel</Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <PageContainer>
@@ -608,9 +679,6 @@ export default function AdminPage() {
                       <p><strong>Suggested Type:</strong> {(viewingSubmission.data as EditEntrySuggestionData).changes.entryType}</p>
                     </div>
                   )}
-
-
-
                   {(
                     ((viewingSubmission.data as EditEntrySuggestionData).changes as { entryType?: AnyEntry['type'] }).entryType === 'exicon' ||
                     originalEntryForEditView?.type === 'exicon'
