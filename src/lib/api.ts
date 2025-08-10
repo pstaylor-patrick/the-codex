@@ -921,31 +921,77 @@ export async function searchEntriesByName(query: string): Promise<EntryWithRefer
     if (!query || query.trim() === '') {
       return [];
     }
-    const searchQuery = `%${query.trim().toLowerCase()}%`;
+
+    const trimmedQuery = query.trim().toLowerCase();
+    const searchQuery = `%${trimmedQuery}%`;
+
     const res = await client.query(
       `SELECT
-          e.id,
-          e.title,
-          e.definition,
-          e.type,
-          e.aliases,
-          e.video_link,
-          e.mentioned_entries,  -- ✅ Added this field
-          ARRAY_AGG(DISTINCT t.id || '::' || t.name) FILTER (WHERE t.id IS NOT NULL) AS tags_array
-       FROM
-          entries e
-       LEFT JOIN
-          entry_tags et ON e.id = et.entry_id
-       LEFT JOIN
-          tags t ON et.tag_id = t.id
-       WHERE
-          LOWER(e.title) LIKE $1 OR LOWER(e.aliases::text) LIKE $1
-       GROUP BY
-          e.id, e.title, e.definition, e.type, e.aliases, e.video_link, e.mentioned_entries  -- ✅ Added to GROUP BY
-       ORDER BY
-          e.title
-       LIMIT 10`,
-      [searchQuery]
+            e.id,
+            e.title,
+            e.definition,
+            e.type,
+            e.aliases,
+            e.video_link,
+            e.mentioned_entries,
+            ARRAY_AGG(DISTINCT t.id || '::' || t.name) FILTER (WHERE t.id IS NOT NULL) AS tags_array,
+            -- More aggressive priority scoring
+            CASE 
+              -- Exact match on full title gets highest priority
+              WHEN LOWER(e.title) = $2 THEN 1
+              -- Title equals just the query (for single word titles)
+              WHEN LOWER(e.title) = $2 THEN 1
+              -- Exact match on individual words in title, prefer if it's the last word
+              WHEN $2 = ANY(string_to_array(LOWER(e.title), ' ')) THEN 
+                CASE WHEN LOWER(e.title) LIKE '%' || $2 THEN 2 ELSE 3 END
+              -- Title starts with query gets fourth priority  
+              WHEN LOWER(e.title) LIKE $3 THEN 4
+              -- Exact match in aliases gets fifth priority
+              WHEN EXISTS (
+                SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
+                WHERE LOWER(alias_elem) = $2
+              ) THEN 5
+              -- Exact match on words in aliases, prefer if it ends with the query
+              WHEN EXISTS (
+                SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
+                WHERE $2 = ANY(string_to_array(LOWER(alias_elem), ' '))
+              ) THEN 
+                CASE WHEN EXISTS (
+                  SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
+                  WHERE LOWER(alias_elem) LIKE '%' || $2
+                ) THEN 6 ELSE 7 END
+              -- Alias starts with query gets eighth priority
+              WHEN EXISTS (
+                SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem  
+                WHERE LOWER(alias_elem) LIKE $3
+              ) THEN 8
+              -- Title contains query gets ninth priority
+              WHEN LOWER(e.title) LIKE $1 THEN 9
+              -- Alias contains query gets lowest priority
+              ELSE 10
+            END as priority,
+            -- Prefer shorter titles and titles ending with the search term
+            LENGTH(e.title) as title_length,
+            -- Boost score for titles ending with the search term
+            CASE WHEN LOWER(e.title) LIKE '%' || $2 THEN 0 ELSE 1 END as ending_boost
+         FROM
+            entries e
+         LEFT JOIN
+            entry_tags et ON e.id = et.entry_id
+         LEFT JOIN
+            tags t ON et.tag_id = t.id
+         WHERE
+            LOWER(e.title) LIKE $1 
+            OR EXISTS (
+              SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
+              WHERE LOWER(alias_elem) LIKE $1
+            )
+         GROUP BY
+            e.id, e.title, e.definition, e.type, e.aliases, e.video_link, e.mentioned_entries
+         ORDER BY
+            priority ASC, ending_boost ASC, title_length ASC, e.title ASC
+         LIMIT 10`,
+      [searchQuery, trimmedQuery, `${trimmedQuery}%`]
     );
 
     return res.rows.map(row => transformDbRowToEntry(row)) as EntryWithReferences[];
@@ -955,5 +1001,5 @@ export async function searchEntriesByName(query: string): Promise<EntryWithRefer
     throw new Error("Failed to search entries.");
   } finally {
     client.release();
-  }
+  };
 }
