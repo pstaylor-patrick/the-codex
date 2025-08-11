@@ -1,6 +1,6 @@
 import { PageContainer } from '@/components/layout/PageContainer';
 import { ExiconClientPageContent } from './ExiconClientPageContent';
-import { fetchAllEntries, getEntryByIdFromDatabase } from '@/lib/api';
+import { fetchAllEntries, getEntryByIdFromDatabase, fetchTagsFromDatabase } from '@/lib/api';
 import type { ExiconEntry, AnyEntry, Tag } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -71,6 +71,8 @@ export default async function ExiconPage() {
   try {
     allEntries = await fetchAllEntries();
 
+    allAvailableTags = await fetchTagsFromDatabase();
+
     const exiconEntries = allEntries.filter(
       (entry): entry is ExiconEntry => entry.type === 'exicon'
     );
@@ -100,25 +102,13 @@ export default async function ExiconPage() {
         };
       });
 
-      const uniqueTags = new Map<string, Tag>();
-      enrichedEntries.forEach(entry => {
-        entry.tags?.forEach(tag => {
-          if (!uniqueTags.has(tag.id)) {
-            uniqueTags.set(tag.id, tag);
-          }
-        });
-      });
-      allAvailableTags = Array.from(uniqueTags.values());
-
     } catch (enrichmentError) {
       console.error("❌ ExiconPage: Failed to enrich entries:", enrichmentError);
-      // Fallback to basic entries without enrichment
       enrichedEntries = exiconEntries.map(entry => ({
         ...entry,
         tags: coerceTagsToValidTagArray(entry.tags),
         aliases: normalizeAliases(entry.aliases, entry.id),
       }));
-      allAvailableTags = [];
       errorMessage = 'Some data enrichment failed, but basic entries are available.';
     }
 
