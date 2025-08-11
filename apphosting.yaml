@@ -1,8 +1,5 @@
 runConfig:
   minInstances: 0
-  # Preserve current public access to avoid IAM policy conflicts
-  invoker:
-    mode: "ALLOW_ALL"
 env:
   - variable: DATABASE_URL
     secret: client-database-url
