@@ -1,4 +1,5 @@
 // src/lib/api.ts
+import "server-only";
 import type {
   AnyEntry, ExiconEntry, Tag,
   NewEntrySuggestionData, EditEntrySuggestionData, UserSubmissionBase, Alias,
