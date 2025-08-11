@@ -1,11 +1,11 @@
 runConfig:
   minInstances: 0
-  # # Preserve current public access to avoid IAM policy conflicts
-  # invoker:
-  #   mode: "ALLOW_ALL"
+  # Preserve current public access to avoid IAM policy conflicts
+  invoker:
+    mode: "ALLOW_ALL"
 env:
   - variable: DATABASE_URL
-    secret: database-url
+    secret: client-database-url
     availability:
       - BUILD
   - variable: FIREBASE_ADMIN_SDK_KEY
