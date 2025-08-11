@@ -8,9 +8,7 @@ env:
     secret: client-database-url
     availability:
       - BUILD
-      - RUNTIME
   - variable: FIREBASE_ADMIN_SDK_KEY
     secret: firebase-admin-sdk-key
     availability:
       - BUILD
-      - RUNTIME
