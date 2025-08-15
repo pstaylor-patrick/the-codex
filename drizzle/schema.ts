@@ -67,3 +67,10 @@ export const userSubmissions = codex.table("user_submissions", {
   status: varchar("status", { length: 50 }).notNull().default("pending"),
   updated_at: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const admins = codex.table("admins", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});

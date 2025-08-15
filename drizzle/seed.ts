@@ -1,5 +1,4 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { getClient } from '@/lib/db';
+import { db } from '@/drizzle/db';
 import { loadEnvConfig } from '@/lib/env';
 
 // Load environment variables
@@ -7,7 +6,7 @@ loadEnvConfig();
 import { entries, tags, entryTags } from './schema';
 import { initialLexiconEntries, initialExiconEntries } from '@/lib/initalEntries';
 
-async function seedLexiconEntries(db: ReturnType<typeof drizzle>) {
+async function seedLexiconEntries() {
   console.log('Seeding lexicon entries...');
   
   for (const entry of initialLexiconEntries) {
@@ -24,7 +23,7 @@ async function seedLexiconEntries(db: ReturnType<typeof drizzle>) {
   console.log(`Seeded ${initialLexiconEntries.length} lexicon entries`);
 }
 
-async function seedExiconEntries(db: ReturnType<typeof drizzle>) {
+async function seedExiconEntries() {
   console.log('Seeding exicon entries and tags...');
   
   const tagNameToId = new Map<string, number>();
@@ -71,19 +70,12 @@ async function seedExiconEntries(db: ReturnType<typeof drizzle>) {
 }
 
 export async function seedDatabase() {
-  const client = await getClient();
-  const db = drizzle(client);
+  console.log('Starting database seeding...');
   
-  try {
-    console.log('Starting database seeding...');
-    
-    await seedLexiconEntries(db);
-    await seedExiconEntries(db);
-    
-    console.log('Database seeding completed successfully!');
-  } finally {
-    client.release();
-  }
+  await seedLexiconEntries();
+  await seedExiconEntries();
+  
+  console.log('Database seeding completed successfully!');
 }
 
 // Execute the seed function if this file is run directly

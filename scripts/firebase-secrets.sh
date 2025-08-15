@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # Configuration constants
-SECRET_VARS=("DATABASE_URL")
-SECRET_IDS=("codex-database-url")
+SECRET_VARS=("DATABASE_URL" "NEXTAUTH_SECRET" "OAUTH_CLIENT_ID" "OAUTH_CLIENT_SECRET" "OAUTH_REDIRECT_URI" "NEXTAUTH_URL" "NEXT_PUBLIC_NEXTAUTH_URL" "AUTH_PROVIDER_URL" "NODE_ENV")
+SECRET_IDS=("codex-database-url" "codex-nextauth-secret" "codex-oauth-client-id" "codex-oauth-client-secret" "codex-oauth-redirect-uri" "codex-nextauth-url" "codex-next-public-nextauth-url" "codex-auth-provider-url" "codex-node-env")
 
 #####################################
 # MAIN EXECUTION FUNCTION

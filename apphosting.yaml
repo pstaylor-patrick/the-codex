@@ -9,23 +9,28 @@ runConfig:
 
 # Environment variables and secrets.
 env:
-  # Database configuration
   - variable: DATABASE_URL
     secret: codex-database-url
     availability:
       - BUILD
       - RUNTIME
-
-  # OAuth client secrets
+  - variable: NEXTAUTH_SECRET
+    secret: codex-nextauth-secret
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: OAUTH_CLIENT_ID
+    secret: codex-oauth-client-id
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: OAUTH_CLIENT_SECRET
     secret: codex-oauth-client-secret
     availability:
       - BUILD
       - RUNTIME
-
-  # NextAuth configuration
-  - variable: NEXTAUTH_SECRET
-    secret: codex-nextauth-secret
+  - variable: OAUTH_REDIRECT_URI
+    secret: codex-oauth-redirect-uri
     availability:
       - BUILD
       - RUNTIME
@@ -39,10 +44,13 @@ env:
     availability:
       - BUILD
       - RUNTIME
-
-  # Auth Provider URL
   - variable: AUTH_PROVIDER_URL
     secret: codex-auth-provider-url
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NODE_ENV
+    secret: codex-node-env
     availability:
       - BUILD
       - RUNTIME
