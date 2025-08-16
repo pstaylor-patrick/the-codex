@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "db:generate:migration": "drizzle-kit generate:pg --config drizzle.config.ts",
     "db:push": "drizzle-kit push:pg --config drizzle.config.ts",
-    "db:seed": "tsx drizzle/seed.ts"
+    "db:seed": "tsx drizzle/seed.ts",
+    "firebase:secrets": "/usr/bin/env bash scripts/firebase-secrets.sh"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
