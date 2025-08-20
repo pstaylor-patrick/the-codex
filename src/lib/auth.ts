@@ -27,7 +27,15 @@ const authConfig: AuthClientConfig = {
 const authClient = new AuthClient(authConfig);
 
 export async function getOAuthConfig(): Promise<OauthClient> {
-  return authClient.getOAuthConfig();
+  // Get config from SDK first
+  const sdkConfig = await authClient.getOAuthConfig();
+  
+  // Override with environment variables to ensure correct URLs in production
+  return {
+    CLIENT_ID: process.env.OAUTH_CLIENT_ID || sdkConfig.CLIENT_ID,
+    REDIRECT_URI: process.env.OAUTH_REDIRECT_URI || sdkConfig.REDIRECT_URI,
+    AUTH_SERVER_URL: process.env.AUTH_PROVIDER_URL || sdkConfig.AUTH_SERVER_URL,
+  };
 }
 
 export async function exchangeCodeForToken(params: TokenExchangeParams) {
