@@ -12,7 +12,8 @@
     "deploy": "npm run build && firebase deploy --only apphosting:the-codex",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "firebase:secrets": "/usr/bin/env bash scripts/firebase-secrets.sh"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
