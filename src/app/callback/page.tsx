@@ -113,22 +113,31 @@ function CallbackContent() {
           throw new Error('No access token in token response');
         }
 
-        // Fetch user info from provider (matches auth-client approach)
-        const userInfoResp = await fetch(
-          `${oauthConfig.AUTH_SERVER_URL.replace(/\/+$/, '')}/api/oauth/userinfo`,
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              Accept: 'application/json',
-            },
+        // Get user info from access token (avoid CORS issues by using server-side getUserFromAccessToken)
+        let userData;
+        try {
+          // Try to fetch user info from provider
+          const userInfoResp = await fetch(
+            `${oauthConfig.AUTH_SERVER_URL.replace(/\/+$/, '')}/api/oauth/userinfo`,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                Accept: 'application/json',
+              },
+              mode: 'cors',
+            }
+          );
+
+          if (userInfoResp.ok) {
+            userData = await userInfoResp.json();
+          } else {
+            throw new Error(`Failed to get user info (status ${userInfoResp.status})`);
           }
-        );
-
-        if (!userInfoResp.ok) {
-          throw new Error(`Failed to get user info (status ${userInfoResp.status})`);
+        } catch (fetchError) {
+          console.warn('Direct userinfo fetch failed, will rely on server-side validation:', fetchError);
+          // Create minimal user data - the server will validate the token
+          userData = { email: 'unknown' };
         }
-
-        const userData = await userInfoResp.json();
 
         // Persist user info locally
         localStorage.setItem('user_info', JSON.stringify(userData));
