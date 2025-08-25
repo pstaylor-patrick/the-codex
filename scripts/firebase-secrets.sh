@@ -16,7 +16,7 @@ main() {
   local env_file="$project_root/.env.firebase"
 
   # Hardcoded Firebase config
-  local project_id="f3-the-codex-e1bed"
+  local project_id="f3-the-codex"
   local backend_id="the-codex"
 
   log_info "Using project ID: $project_id"
