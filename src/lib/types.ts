@@ -65,6 +65,10 @@ export interface NewEntrySuggestionData {
   videoLink?: string;
   mentionedEntries: string[];
   id?: string;
+  comments?: string;
+  timestamp?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 
@@ -80,6 +84,7 @@ export interface EditEntrySuggestionData {
     videoLink?: string;
     mentionedEntries?: string[];
     entryType?: 'exicon' | 'lexicon';
+    comments?: string;
   };
   comments?: string;
 }
@@ -94,6 +99,8 @@ export interface UserSubmissionBase<T = NewEntrySuggestionData | EditEntrySugges
   submitterEmail?: string;
   status: 'pending' | 'approved' | 'rejected';
   timestamp: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 

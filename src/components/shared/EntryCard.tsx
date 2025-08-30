@@ -58,23 +58,34 @@ const renderDescriptionWithMentions = (
     text: string;
     entry: AnyEntry;
   }[] = [];
+  const addedMentions = new Set<string>();
 
   if (resolvedMentionsData) {
     Object.values(resolvedMentionsData).forEach(entry => {
-      let searchString = `@${entry.name}`;
-      let lastIndex = description.indexOf(searchString, 0);
-      while (lastIndex !== -1) {
-        foundMentions.push({ index: lastIndex, text: searchString, entry });
-        lastIndex = description.indexOf(searchString, lastIndex + 1);
+      const entryKey = `${entry.type}-${entry.id}`;
+
+      const mainSearchString = `@${entry.name}`;
+      let lastIndexMain = description.indexOf(mainSearchString, 0);
+      while (lastIndexMain !== -1) {
+        const uniqueMentionKey = `${entryKey}-${lastIndexMain}`;
+        if (!addedMentions.has(uniqueMentionKey)) {
+          foundMentions.push({ index: lastIndexMain, text: mainSearchString, entry });
+          addedMentions.add(uniqueMentionKey);
+        }
+        lastIndexMain = description.indexOf(mainSearchString, lastIndexMain + 1);
       }
 
       entry.aliases?.forEach(alias => {
         const aliasName = typeof alias === 'string' ? alias : alias.name;
-        searchString = `@${aliasName}`;
-        lastIndex = description.indexOf(searchString, 0);
-        while (lastIndex !== -1) {
-          foundMentions.push({ index: lastIndex, text: searchString, entry });
-          lastIndex = description.indexOf(searchString, lastIndex + 1);
+        const aliasSearchString = `@${aliasName}`;
+        let lastIndexAlias = description.indexOf(aliasSearchString, 0);
+        while (lastIndexAlias !== -1) {
+          const uniqueMentionKey = `${entryKey}-${lastIndexAlias}`;
+          if (!addedMentions.has(uniqueMentionKey)) {
+            foundMentions.push({ index: lastIndexAlias, text: aliasSearchString, entry });
+            addedMentions.add(uniqueMentionKey);
+          }
+          lastIndexAlias = description.indexOf(aliasSearchString, lastIndexAlias + 1);
         }
       });
     });
@@ -92,6 +103,7 @@ const renderDescriptionWithMentions = (
     }
 
     const colorClass = mentionColors[mentionCount % mentionColors.length];
+
     parts.push(
       <HoverCard key={`mention-${mention.index}-${mention.entry.id}`} openDelay={200} closeDelay={100}>
         <HoverCardTrigger asChild>
@@ -169,8 +181,6 @@ const renderDescriptionWithMentions = (
 };
 
 export function EntryCard({ entry }: EntryCardProps) {
-
-
   const { toast } = useToast();
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSuggestEditFormOpen, setIsSuggestEditFormOpen] = useState(false);

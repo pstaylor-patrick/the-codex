@@ -11,7 +11,7 @@ import type { ExiconEntry, AnyEntry } from '../../../lib/types';
  */
 export async function GET() {
     try {
-        const allEntries: AnyEntry[] = await fetchAllEntries();
+        const allEntries: AnyEntry[] = await fetchAllEntries("exicon");
 
         const exiconEntries: ExiconEntry[] = allEntries.filter(
             (entry): entry is ExiconEntry => entry.type === 'exicon'

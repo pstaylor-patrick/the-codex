@@ -9,7 +9,7 @@ import type { LexiconEntry, AnyEntry } from '../../../lib/types';
  */
 export async function GET() {
     try {
-        const allEntries: AnyEntry[] = await fetchAllEntries();
+        const allEntries: AnyEntry[] = await fetchAllEntries("lexicon");
         const lexiconEntries: LexiconEntry[] = allEntries.filter(
             (entry): entry is LexiconEntry => entry.type === 'lexicon'
         );

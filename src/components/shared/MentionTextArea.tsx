@@ -11,6 +11,7 @@ import { CardDescription } from "@/components/ui/card";
 import type { EntryWithReferences } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Dispatch, SetStateAction } from "react";
+
 interface MentionTextAreaProps {
   value: string;
   onChange: (value: string) => void;
@@ -20,6 +21,7 @@ interface MentionTextAreaProps {
   onMentionsChange?: (mentions: { id: string; name: string }[]) => void;
   onAutocompleteToggle?: Dispatch<SetStateAction<boolean>>;
 }
+
 export function MentionTextArea({
   value,
   onChange,
@@ -40,6 +42,7 @@ export function MentionTextArea({
     { id: string; name: string; description?: string; type?: string }[]
   >([]);
   const [focusIndex, setFocusIndex] = useState(-1);
+
   const debounce = useCallback(
     (fn: (...args: any[]) => void, delay: number) => {
       let timer: NodeJS.Timeout;
@@ -50,6 +53,7 @@ export function MentionTextArea({
     },
     []
   );
+
   const debouncedSearch = useCallback(
     debounce(async (text: string) => {
       setLoading(true);
@@ -65,8 +69,9 @@ export function MentionTextArea({
         setLoading(false);
       }
     }, 300),
-    [searchEntries]
+    [searchEntries, debounce]
   );
+
   useEffect(() => {
     if (showAutocomplete && query) {
       debouncedSearch(query);
@@ -75,6 +80,7 @@ export function MentionTextArea({
       setFocusIndex(-1);
     }
   }, [query, showAutocomplete, debouncedSearch]);
+
   useEffect(() => {
     setMentions((prevMentions) => {
       const stillMentioned = prevMentions.filter((m) =>
@@ -83,17 +89,27 @@ export function MentionTextArea({
       const hasChanged =
         stillMentioned.length !== prevMentions.length ||
         !stillMentioned.every((m) => prevMentions.some((p) => p.id === m.id));
+
       if (hasChanged) {
-        onMentionsChange?.(
-          stillMentioned.map(({ id, name }) => ({ id, name }))
-        );
+
+        setTimeout(() => {
+          onMentionsChange?.(
+            stillMentioned.map(({ id, name }) => ({ id, name }))
+          );
+        }, 0);
       }
       return stillMentioned;
     });
   }, [value, onMentionsChange]);
+
   useEffect(() => {
-    onAutocompleteToggle?.(showAutocomplete);
+    const timeoutId = setTimeout(() => {
+      onAutocompleteToggle?.(showAutocomplete);
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
   }, [showAutocomplete, onAutocompleteToggle]);
+
   useEffect(() => {
     if (showAutocomplete) {
       document.body.style.overflow = "hidden";
@@ -104,6 +120,7 @@ export function MentionTextArea({
       document.body.style.overflow = "";
     };
   }, [showAutocomplete]);
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     onChange(val);
@@ -111,6 +128,7 @@ export function MentionTextArea({
     setCursor(cursorPos);
     const textBeforeCursor = val.slice(0, cursorPos);
     const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+
     if (lastAtIndex !== -1) {
       const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
       if (!textAfterAt.includes(" ") && textAfterAt.length <= 50) {
@@ -127,29 +145,38 @@ export function MentionTextArea({
       setFocusIndex(-1);
     }
   };
+
   const handleSelect = (entry: EntryWithReferences) => {
     if (!textareaRef.current) return;
+
     const text = value;
     const pre = text.slice(0, cursor);
     const post = text.slice(cursor);
     const atIdx = pre.lastIndexOf("@");
+
     const replaced = pre.slice(0, atIdx) + `@${entry.name} `;
     const updated = replaced + post;
     const newCursor = replaced.length;
+
     setShowAutocomplete(false);
     setQuery("");
     setResults([]);
     setCursor(newCursor);
     setFocusIndex(-1);
     onChange(updated);
+
     setMentions((prev) => {
       const exists = prev.some((m) => m.id === entry.id);
       const next = exists ? prev : [...prev, { ...entry }];
       if (!exists) {
-        onMentionsChange?.(next.map(({ id, name }) => ({ id, name })));
+
+        setTimeout(() => {
+          onMentionsChange?.(next.map(({ id, name }) => ({ id, name })));
+        }, 0);
       }
       return next;
     });
+
     requestAnimationFrame(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
@@ -157,6 +184,7 @@ export function MentionTextArea({
       }
     });
   };
+
   const renderFormatted = (text: string) => {
     const parts: React.ReactNode[] = [];
     const mentionOccurrences: {
@@ -169,6 +197,7 @@ export function MentionTextArea({
         type?: string;
       };
     }[] = [];
+
     mentions.forEach((mention) => {
       let searchString = `@${mention.name}`;
       let lastIndex = text.indexOf(searchString, 0);
@@ -181,7 +210,9 @@ export function MentionTextArea({
         lastIndex = text.indexOf(searchString, lastIndex + 1);
       }
     });
+
     mentionOccurrences.sort((a, b) => a.startIndex - b.startIndex);
+
     let lastIndex = 0;
     mentionOccurrences.forEach(({ startIndex, endIndex, mention }, i) => {
       if (startIndex > lastIndex) {
@@ -222,11 +253,14 @@ export function MentionTextArea({
       );
       lastIndex = endIndex;
     });
+
     if (lastIndex < text.length) {
       parts.push(text.substring(lastIndex));
     }
+
     return parts;
   };
+
   return (
     <div className="relative z-10">
       <Textarea
@@ -275,7 +309,8 @@ export function MentionTextArea({
         >
           {loading ? (
             <div className="p-4 text-center text-sm text-gray-800 dark:text-gray-200">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin inline" /> Loading...
+              <Loader2 className="mr-2 h-4 w-4 animate-spin inline" />{" "}
+              Loading...
             </div>
           ) : results.length === 0 ? (
             <div className="p-4 text-sm text-gray-800 dark:text-gray-200">

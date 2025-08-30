@@ -1,10 +1,18 @@
-// src/app/submit/actions.ts
 'use server';
 
-import { createSubmissionInDatabase, fetchTagsFromDatabase as apiFetchTagsFromDatabase } from '@/lib/api';
+import { createSubmissionInDatabase, fetchTagsFromDatabase as apiFetchTagsFromDatabase, getEntryByIdFromDatabase } from '@/lib/api';
 import type { NewUserSubmission, NewEntrySuggestionData, EditEntrySuggestionData, Tag, EntryWithReferences } from '@/lib/types';
 import { getClient } from '@/lib/db';
 import { transformDbRowToEntry } from '@/lib/api';
+
+/**
+ * Fetches a single entry by its ID.
+ * @param id The ID of the entry to fetch.
+ * @returns A promise that resolves to the matching entry or null if not found.
+ */
+export async function getEntryById(id: string | number): Promise<EntryWithReferences | null> {
+  return getEntryByIdFromDatabase(String(id));
+}
 
 /**
  * Searches for entries by name or alias for autocomplete suggestions.
