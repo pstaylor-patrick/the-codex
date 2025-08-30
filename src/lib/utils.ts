@@ -76,7 +76,9 @@ export async function formatDescriptionWithMentionsHTML(
 export const getYouTubeEmbedUrl = (url: string): string | null => {
   if (!url) return null;
 
-  const youtubeRegex = new RegExp('^(?:https?://)?(?:www\.)?(?:youtube\.com|youtu\.be)/(?:watch\?v=|embed\/|v\/)([a-zA-Z0-9_-]+)');
+
+  const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+
   const match = url.match(youtubeRegex);
 
   if (match && match[1]) {

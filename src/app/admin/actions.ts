@@ -92,5 +92,5 @@ export async function applyApprovedSubmissionToDatabase(submission: UserSubmissi
 }
 
 export async function fetchEntryById(id: string | number): Promise<AnyEntry | null> {
-  return apiGetEntryByIdFromDatabase(id);
+  return apiGetEntryByIdFromDatabase(String(id));
 }

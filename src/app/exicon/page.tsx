@@ -55,13 +55,6 @@ function normalizeAliases(aliases: unknown, entryId: string): { id: string; name
 }
 
 export default async function ExiconPage() {
-  // Add runtime environment debugging
-  console.log('🔍 ExiconPage Runtime Debug:');
-  console.log('- NODE_ENV:', process.env.NODE_ENV);
-  console.log('- DATABASE_URL available:', !!process.env.DATABASE_URL);
-  console.log('- DATABASE_URL length:', process.env.DATABASE_URL?.length || 0);
-  console.log('- DATABASE_URL starts with postgresql:', process.env.DATABASE_URL?.startsWith('postgresql://'));
-  console.log('- All env vars starting with DATABASE:', Object.keys(process.env).filter(k => k.includes('DATABASE')));
 
   let allEntries: AnyEntry[] = [];
   let enrichedEntries: ExiconEntry[] = [];
@@ -135,7 +128,6 @@ export default async function ExiconPage() {
     );
   }
 
-  console.log('🔍 ExiconPage: Rendering with', enrichedEntries.length, 'entries');
 
   return (
     <PageContainer>

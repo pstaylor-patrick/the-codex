@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +28,7 @@ export function SubmissionForm() {
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [isLoadingTags, setIsLoadingTags] = useState(true);
 
+  const mentionsRef = useRef<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     const loadTags = async () => {
@@ -45,6 +46,10 @@ export function SubmissionForm() {
     loadTags();
   }, [toast]);
 
+  useEffect(() => {
+    const newMentionIds = mentionsRef.current.map(mention => mention.id);
+    setMentionedEntryIds(newMentionIds);
+  }, [mentionsRef.current]);
 
   const resetForm = () => {
     setName('');
@@ -78,7 +83,6 @@ export function SubmissionForm() {
         ? selectedTagIds.map(id => availableTags.find(t => t.id === id)?.name).filter(Boolean) as string[]
         : [],
       videoLink: entryType === 'exicon' && videoLink ? videoLink : undefined,
-
       mentionedEntries: mentionedEntryIds,
     };
 
@@ -108,9 +112,9 @@ export function SubmissionForm() {
       return newSelectedTags;
     });
   };
+
   const handleMentionsChange = (mentions: { id: string; name: string }[]) => {
-    const newMentionIds = mentions.map(mention => mention.id);
-    setMentionedEntryIds(newMentionIds);
+    mentionsRef.current = mentions;
   };
 
   return (

@@ -48,7 +48,7 @@ export function TagFilter({
             </div>
           </RadioGroup>
         </div>
-        <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
           {allTags.map((tag) => (
             <div key={tag.id} className="flex items-center space-x-2">
               <Checkbox
