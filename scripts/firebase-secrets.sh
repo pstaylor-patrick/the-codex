@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # Configuration constants
-SECRET_VARS=("DATABASE_URL" "NEXTAUTH_SECRET" "AUTH_PROVIDER_URL" "NEXTAUTH_URL" "NEXT_PUBLIC_NEXTAUTH_URL" "OAUTH_REDIRECT_URI" "OAUTH_CLIENT_ID" "OAUTH_CLIENT_SECRET")
-SECRET_IDS=("codex-database-url" "codex-nextauth-secret" "codex-auth-provider-url" "codex-nextauth-url" "codex-next-public-nextauth-url" "codex-oauth-redirect-uri" "codex-oauth-client-id" "codex-oauth-client-secret")
+SECRET_VARS=("DATABASE_URL" "NEXTAUTH_SECRET" "AUTH_PROVIDER_URL" "NEXTAUTH_URL" "NEXT_PUBLIC_NEXTAUTH_URL" "OAUTH_REDIRECT_URI" "OAUTH_CLIENT_ID" "OAUTH_CLIENT_SECRET" "SENDGRID_API_KEY" "FROM_EMAIL")
+SECRET_IDS=("codex-database-url" "codex-nextauth-secret" "codex-auth-provider-url" "codex-nextauth-url" "codex-next-public-nextauth-url" "codex-oauth-redirect-uri" "codex-oauth-client-id" "codex-oauth-client-secret" "codex-sendgrid-api-key" "codex-from-email")
 
 #####################################
 # MAIN EXECUTION FUNCTION
