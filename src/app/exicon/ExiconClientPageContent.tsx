@@ -3,13 +3,14 @@
 import { useState, useMemo } from 'react';
 import { SearchBar } from '@/components/shared/SearchBar';
 import { Button } from '@/components/ui/button';
-import { Download, Dumbbell } from 'lucide-react';
+import { Download, Dumbbell, PencilLine } from 'lucide-react';
 import { EntryGrid } from '@/components/shared/EntryGrid';
 import type { ExiconEntry, Tag, FilterLogic, AnyEntry } from '@/lib/types';
 import { exportToCSV } from '@/lib/utils';
 import { TagFilter } from '@/components/exicon/TagFilter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Filter } from 'lucide-react';
+import Link from 'next/link';
 
 interface ExiconClientPageContentProps {
   initialEntries: (ExiconEntry & {
@@ -112,13 +113,23 @@ export const ExiconClientPageContent = ({ initialEntries, allTags }: ExiconClien
 
         <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center">
           <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search exercises by name or alias..." />
-          <Button
-            onClick={() => exportToCSV(filteredEntries.filter((entry): entry is ExiconEntry => entry.type === 'exicon'))}
-            variant="outline"
-            className="w-full sm:w-auto"
-          >
-            <Download className="mr-2 h-4 w-4" /> Export CSV
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            <Link href="/submit-entry" passHref>
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                <PencilLine className="mr-2 h-4 w-4" /> Submit Entry
+              </Button>
+            </Link>
+            <Button
+              onClick={() => exportToCSV(filteredEntries.filter((entry): entry is ExiconEntry => entry.type === 'exicon'))}
+              variant="outline"
+              className="w-full sm:w-auto"
+            >
+              <Download className="mr-2 h-4 w-4" /> Export CSV
+            </Button>
+          </div>
         </div>
 
         <EntryGrid entries={filteredEntries} />

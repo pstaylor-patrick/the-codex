@@ -4,10 +4,11 @@ import { useState, useMemo } from 'react';
 import type { AnyEntry, LexiconEntry } from '@/lib/types';
 import { SearchBar } from '@/components/shared/SearchBar';
 import { Button } from '@/components/ui/button';
-import { Download, BookText } from 'lucide-react';
+import { Download, BookText, PencilLine } from 'lucide-react';
 import { EntryGrid } from '@/components/shared/EntryGrid';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Filter } from 'lucide-react';
+import Link from 'next/link';
 
 // A helper function to export to CSV
 // This function is robust and handles the potential for different alias types
@@ -122,13 +123,23 @@ export const LexiconClientPageContent = ({ initialEntries }: LexiconClientPageCo
 
         <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center">
           <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search Lexicon..." />
-          <Button
-            onClick={() => exportToCSV(filteredEntries.filter((entry): entry is LexiconEntry => entry.type === 'lexicon'))}
-            variant="outline"
-            className="w-full sm:w-auto"
-          >
-            <Download className="mr-2 h-4 w-4" /> Export CSV
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            <Link href="/submit-entry" passHref>
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                <PencilLine className="mr-2 h-4 w-4" /> Submit Entry
+              </Button>
+            </Link>
+            <Button
+              onClick={() => exportToCSV(filteredEntries.filter((entry): entry is LexiconEntry => entry.type === 'lexicon'))}
+              variant="outline"
+              className="w-full sm:w-auto"
+            >
+              <Download className="mr-2 h-4 w-4" /> Export CSV
+            </Button>
+          </div>
         </div>
         <EntryGrid entries={filteredEntries} />
       </main>
