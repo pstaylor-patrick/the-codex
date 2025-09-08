@@ -174,16 +174,36 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
   return (
     <Card className="w-full border-0 shadow-none">
       <form onSubmit={handleSubmit}>
+        <div className="space-y-4 px-6 mb-4">
+          <div className="space-y-2">
+            <Label htmlFor="suggestedTitle">Suggested Title</Label>
+            <Input
+              id="suggestedTitle"
+              value={suggestedTitle}
+              onChange={(e) => setSuggestedTitle(e.target.value)}
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="submitterName-suggest">Your F3 Name (Optional)</Label>
+              <Input id="submitterName-suggest" value={submitterName} onChange={(e) => setSubmitterName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="submitterEmail-suggest">Your Email (Optional)</Label>
+              <Input id="submitterEmail-suggest" type="email" value={submitterEmail} onChange={(e) => setSubmitterEmail(e.target.value)} />
+            </div>
+          </div>
+        </div>
+
         <Tabs
           defaultValue="description"
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 mb-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-4">
             <TabsTrigger value="description">Description</TabsTrigger>
             <TabsTrigger value="aliases">Aliases</TabsTrigger>
             {isExicon && <TabsTrigger value="video">Video</TabsTrigger>}
             {isExicon && <TabsTrigger value="tags">Tags</TabsTrigger>}
-            <TabsTrigger value="info">Info</TabsTrigger>
           </TabsList>
 
           <CardContent className="space-y-6 px-1 max-h-[65vh] overflow-y-auto">
@@ -248,31 +268,10 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
                 </TabsContent>
               </>
             )}
-
-            <TabsContent value="info">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="suggestedTitle">Suggested Title</Label>
-                  <Input
-                    id="suggestedTitle"
-                    value={suggestedTitle}
-                    onChange={(e) => setSuggestedTitle(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="submitterName-suggest">Your Name (Optional)</Label>
-                    <Input id="submitterName-suggest" value={submitterName} onChange={(e) => setSubmitterName(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="submitterEmail-suggest">Your Email (Optional)</Label>
-                    <Input id="submitterEmail-suggest" type="email" value={submitterEmail} onChange={(e) => setSubmitterEmail(e.target.value)} />
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
           </CardContent>
         </Tabs>
+
+        {/* Comments section - always visible */}
         <div className="space-y-2 px-6">
           <Label htmlFor="comments">Reason for Changes / Comments <span className="text-destructive">*</span></Label>
           <Textarea
@@ -283,6 +282,7 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
             required
           />
         </div>
+
         <CardFooter className="px-1 pt-6 pb-0 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
           <Button type="submit">Submit Suggestion</Button>
@@ -290,4 +290,4 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
       </form>
     </Card>
   );
-} 
+}
