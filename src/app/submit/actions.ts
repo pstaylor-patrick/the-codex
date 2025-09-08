@@ -4,6 +4,74 @@ import { createSubmissionInDatabase, fetchTagsFromDatabase as apiFetchTagsFromDa
 import type { NewUserSubmission, NewEntrySuggestionData, EditEntrySuggestionData, Tag, EntryWithReferences } from '@/lib/types';
 import { getClient } from '@/lib/db';
 import { transformDbRowToEntry } from '@/lib/api';
+import sgMail from '@sendgrid/mail';
+
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
+
+/**
+ * Sends email notification for new submissions
+ */
+async function sendSubmissionNotification(
+  type: 'new' | 'edit',
+  submissionData: NewEntrySuggestionData | EditEntrySuggestionData,
+  submitterEmail?: string,
+  submitterName?: string
+) {
+  if (!process.env.SENDGRID_API_KEY || !process.env.FROM_EMAIL) {
+    console.warn('SendGrid not configured - skipping email notification');
+    return;
+  }
+
+  try {
+    const isEdit = type === 'edit';
+    const entryName = isEdit
+      ? (submissionData as EditEntrySuggestionData).entryName
+      : (submissionData as NewEntrySuggestionData).name;
+
+    // Email to submitter (if email provided)
+    if (submitterEmail) {
+      const submitterMsg = {
+        to: submitterEmail,
+        from: process.env.FROM_EMAIL!,
+        subject: `Submission Received: ${entryName}`,
+        html: `
+          <h2>Thank you for your submission!</h2>
+          <p>Hi ${submitterName || 'there'},</p>
+          <p>We've received your ${isEdit ? 'edit suggestion' : 'new entry suggestion'} for "<strong>${entryName}</strong>".</p>
+          <p>Our team will review it and get back to you soon.</p>
+          <br>
+          <p>Thanks for contributing to the F3 community!</p>
+        `
+      };
+
+      await sgMail.send(submitterMsg);
+    }
+
+    if (process.env.ADMIN_EMAIL) {
+      const adminMsg = {
+        to: process.env.ADMIN_EMAIL,
+        from: process.env.FROM_EMAIL!,
+        subject: `New ${isEdit ? 'Edit' : 'Entry'} Submission: ${entryName}`,
+        html: `
+          <h2>New Submission Received</h2>
+          <p><strong>Type:</strong> ${isEdit ? 'Edit Suggestion' : 'New Entry'}</p>
+          <p><strong>Entry:</strong> ${entryName}</p>
+          <p><strong>Submitter:</strong> ${submitterName || 'Anonymous'} ${submitterEmail ? `(${submitterEmail})` : ''}</p>
+          <p><strong>Description:</strong> ${isEdit ? 'Edit to existing entry' : (submissionData as NewEntrySuggestionData).description?.substring(0, 200) + '...'}</p>
+          <br>
+          <p>Please review this submission in the admin panel.</p>
+        `
+      };
+
+      await sgMail.send(adminMsg);
+    }
+
+  } catch (error) {
+    console.error('Error sending email notification:', error);
+  }
+}
 
 /**
  * Fetches a single entry by its ID.
@@ -118,6 +186,14 @@ export async function searchEntriesByName(query: string): Promise<EntryWithRefer
  */
 export async function submitNewEntrySuggestion(submission: NewUserSubmission<NewEntrySuggestionData>): Promise<void> {
   await createSubmissionInDatabase(submission);
+
+  // Send email notification after successful submission
+  await sendSubmissionNotification(
+    'new',
+    submission.data,
+    submission.submitterEmail,
+    submission.submitterName
+  );
 }
 
 /**
@@ -127,6 +203,14 @@ export async function submitNewEntrySuggestion(submission: NewUserSubmission<New
  */
 export async function submitEditEntrySuggestion(submission: NewUserSubmission<EditEntrySuggestionData>): Promise<void> {
   await createSubmissionInDatabase(submission);
+
+  // Send email notification after successful submission
+  await sendSubmissionNotification(
+    'edit',
+    submission.data,
+    submission.submitterEmail,
+    submission.submitterName
+  );
 }
 
 /**

@@ -109,6 +109,16 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!submitterName.trim()) {
+      toast({ title: "F3 Name Required", description: "Please provide your F3 name.", variant: "destructive" });
+      return;
+    }
+
+    if (!submitterEmail.trim()) {
+      toast({ title: "Email Required", description: "Please provide your email address.", variant: "destructive" });
+      return;
+    }
+
     if (!comments.trim()) {
       toast({ title: "Comments Required", description: "Please provide comments explaining your suggested changes.", variant: "destructive" });
       return;
@@ -149,8 +159,8 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
     const submissionPayload: NewUserSubmission<EditEntrySuggestionData> = {
       submissionType: 'edit',
       data: editDataPayload,
-      submitterName: submitterName || undefined,
-      submitterEmail: submitterEmail || undefined,
+      submitterName: submitterName,
+      submitterEmail: submitterEmail,
     };
 
     try {
@@ -185,12 +195,23 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="submitterName-suggest">Your F3 Name (Optional)</Label>
-              <Input id="submitterName-suggest" value={submitterName} onChange={(e) => setSubmitterName(e.target.value)} />
+              <Label htmlFor="submitterName-suggest">Your F3 Name <span className="text-destructive">*</span></Label>
+              <Input
+                id="submitterName-suggest"
+                value={submitterName}
+                onChange={(e) => setSubmitterName(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="submitterEmail-suggest">Your Email (Optional)</Label>
-              <Input id="submitterEmail-suggest" type="email" value={submitterEmail} onChange={(e) => setSubmitterEmail(e.target.value)} />
+              <Label htmlFor="submitterEmail-suggest">Your Email <span className="text-destructive">*</span></Label>
+              <Input
+                id="submitterEmail-suggest"
+                type="email"
+                value={submitterEmail}
+                onChange={(e) => setSubmitterEmail(e.target.value)}
+                required
+              />
             </div>
           </div>
         </div>
@@ -210,6 +231,9 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
             <TabsContent value="description">
               <div className="space-y-2">
                 <Label htmlFor="suggestedDescription">Suggested Description</Label>
+                <p className="text-sm text-muted-foreground">
+                  You can reference other entries by typing <span className="font-mono text-destructive">@</span>.
+                </p>
                 <MentionTextArea
                   value={suggestedDescription}
                   onChange={setSuggestedDescription}
