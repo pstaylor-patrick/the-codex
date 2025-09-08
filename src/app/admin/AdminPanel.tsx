@@ -348,7 +348,7 @@ export default function AdminPanel() {
         if (submission) {
             try {
                 await applyApprovedSubmissionToDatabase(submission);
-                await updateSubmissionStatusInDatabase(submissionId, 'approved');
+                await updateSubmissionStatusInDatabase(submissionId, 'approved', submission);
                 toast({ title: "Submission Approved", description: `Submission ID "${submissionId}" has been approved.` });
                 await refetchAllData();
                 if (viewingSubmission?.id === submissionId) setIsSubmissionDetailOpen(false);
@@ -363,7 +363,7 @@ export default function AdminPanel() {
         const submission = userSubmissions.find(s => s.id === submissionId);
         if (submission) {
             try {
-                await updateSubmissionStatusInDatabase(submissionId, 'rejected');
+                await updateSubmissionStatusInDatabase(submissionId, 'rejected', submission);
                 toast({ title: "Submission Rejected", description: `Submission ID "${submissionId}" has been rejected.` });
                 await refetchAllData();
                 if (viewingSubmission?.id === submissionId) setIsSubmissionDetailOpen(false);
