@@ -124,7 +124,7 @@ export const LexiconClientPageContent = ({ initialEntries }: LexiconClientPageCo
         <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center">
           <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search Lexicon..." />
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-            <Link href="/submit-entry" passHref>
+            <Link href="/submit" passHref>
               <Button
                 variant="outline"
                 className="w-full sm:w-auto"
