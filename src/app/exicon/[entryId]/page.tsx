@@ -5,9 +5,55 @@ import { ArrowLeft, ExternalLink } from 'lucide-react';
 import { getYouTubeEmbedUrl } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import type { ExiconEntry } from '@/lib/types';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getEntryByIdFromDatabase } from '@/lib/api';
 import CopyLinkButton from '@/components/shared/CopyLinkButton';
+import { SuggestEditsButton } from '@/components/shared/SuggestEditsButton';
+
+export async function generateMetadata({ params }: { params: Promise<{ entryId: string }> }): Promise<Metadata> {
+  const { entryId } = await params;
+  const entry = await getEntryByIdFromDatabase(entryId);
+
+  if (!entry || entry.type !== 'exicon') {
+    return {
+      title: 'Entry Not Found - F3 Exicon',
+      description: 'The requested exicon entry could not be found.',
+    };
+  }
+
+  const exiconEntry = entry as ExiconEntry;
+  const title = `${exiconEntry.name} - F3 Exicon`;
+  const description = exiconEntry.description || `Learn about the ${exiconEntry.name} exercise in the F3 Exicon.`;
+  const url = `https://f3nation.com/exicon/${entryId}`;
+  const tags = exiconEntry.tags?.map(tag => tag.name).join(', ') || '';
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description: tags ? `${description} Tags: ${tags}` : description,
+      url,
+      siteName: 'F3 Nation Codex',
+      type: 'article',
+      images: [
+        {
+          url: '/og-exicon.png',
+          width: 1200,
+          height: 630,
+          alt: `${exiconEntry.name} - F3 Exicon Exercise`,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: tags ? `${description} Tags: ${tags}` : description,
+      images: ['/og-exicon.png'],
+    },
+  };
+}
 
 export default async function ExiconEntryPage({ params }: { params: Promise<{ entryId: string }> }) {
     const { entryId } = await params;
@@ -74,7 +120,7 @@ export default async function ExiconEntryPage({ params }: { params: Promise<{ en
                         </div>
 
                         {exiconEntry.tags && exiconEntry.tags.length > 0 && (
-                            <div>
+                            <div className="mb-6">
                                 <h3 className="text-xl font-semibold mb-2">Tags</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {exiconEntry.tags.map(tag => (
@@ -85,6 +131,10 @@ export default async function ExiconEntryPage({ params }: { params: Promise<{ en
                                 </div>
                             </div>
                         )}
+
+                        <div className="flex justify-end">
+                            <SuggestEditsButton entry={exiconEntry} />
+                        </div>
                     </CardContent>
                 </Card>
             </div>

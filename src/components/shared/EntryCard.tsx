@@ -227,7 +227,8 @@ export function EntryCard({ entry }: EntryCardProps) {
 
   const handleCopyEntryContent = async (event: React.MouseEvent) => {
     event.stopPropagation();
-    const url = `https://f3nation.com/${entry.type === 'exicon' ? 'exicon' : 'lexicon'}/${entry.id}`;
+    const encodedId = encodeURIComponent(entry.id);
+    const url = `https://f3nation.com/${entry.type === 'exicon' ? 'exicon' : 'lexicon'}/${encodedId}`;
     try {
       await navigator.clipboard.writeText(url);
       toast({ title: `${entry.name} URL Copied!`, description: "The link has been copied to your clipboard." });

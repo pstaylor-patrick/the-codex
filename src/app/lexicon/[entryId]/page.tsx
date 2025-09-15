@@ -6,6 +6,7 @@ import type { LexiconEntry } from '@/lib/types';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getEntryByIdFromDatabase } from '@/lib/api';
+import { SuggestEditsButton } from '@/components/shared/SuggestEditsButton';
 
 export async function generateMetadata({ params }: { params: Promise<{ entryId: string }> }): Promise<Metadata> {
   const { entryId } = await params;
@@ -82,7 +83,11 @@ export default async function LexiconEntryPage({ params }: { params: Promise<{ e
                     </CardHeader>
                     <CardContent className="p-6">
                         <h3 className="text-xl font-semibold mb-2">Description</h3>
-                        <p className="text-gray-700 dark:text-gray-300">{lexiconEntry.description}</p>
+                        <p className="text-gray-700 dark:text-gray-300 mb-6">{lexiconEntry.description}</p>
+
+                        <div className="flex justify-end">
+                            <SuggestEditsButton entry={lexiconEntry} />
+                        </div>
                     </CardContent>
                 </Card>
             </div>
