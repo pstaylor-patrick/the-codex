@@ -10,9 +10,11 @@ import Link from 'next/link';
 import { getEntryByIdFromDatabase } from '@/lib/api';
 import CopyLinkButton from '@/components/shared/CopyLinkButton';
 import { SuggestEditsButton } from '@/components/shared/SuggestEditsButton';
+import { CopyEntryUrlButton } from '@/components/shared/CopyEntryUrlButton';
 
 export async function generateMetadata({ params }: { params: Promise<{ entryId: string }> }): Promise<Metadata> {
-  const { entryId } = await params;
+  const { entryId: rawEntryId } = await params;
+  const entryId = decodeURIComponent(rawEntryId);
   const entry = await getEntryByIdFromDatabase(entryId);
 
   if (!entry || entry.type !== 'exicon') {
@@ -56,7 +58,8 @@ export async function generateMetadata({ params }: { params: Promise<{ entryId: 
 }
 
 export default async function ExiconEntryPage({ params }: { params: Promise<{ entryId: string }> }) {
-    const { entryId } = await params;
+    const { entryId: rawEntryId } = await params;
+    const entryId = decodeURIComponent(rawEntryId);
 
     const entry = await getEntryByIdFromDatabase(entryId);
 
@@ -132,7 +135,8 @@ export default async function ExiconEntryPage({ params }: { params: Promise<{ en
                             </div>
                         )}
 
-                        <div className="flex justify-end">
+                        <div className="flex justify-end gap-2">
+                            <CopyEntryUrlButton entry={exiconEntry} />
                             <SuggestEditsButton entry={exiconEntry} />
                         </div>
                     </CardContent>
