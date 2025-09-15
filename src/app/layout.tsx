@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { Geist } from 'next/font/google';
 import { Geist_Mono } from 'next/font/google';
 import { headers } from 'next/headers';
+import Script from 'next/script';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -35,10 +36,41 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}
         suppressHydrationWarning={true}
       >
-        {!isProxied && <Header />}
+        {isProxied ? (
+          <iframe
+            src="/f3-header"
+            style={{ width: '100%', height: '70px', border: 'none' }}
+          ></iframe>
+        ) : (
+          <Header />
+        )}
         <main className="flex-grow">{children}</main>
-        {!isProxied && <Footer />}
+        {isProxied ? (
+          <iframe
+            src="/f3-footer"
+            style={{ width: '100%', height: '100px', border: 'none' }}
+          ></iframe>
+        ) : (
+          <Footer />
+        )}
         <Toaster />
+        <Script id="iframe-height-reporter" strategy="afterInteractive">
+          {`
+            function sendHeight() {
+              const height = document.documentElement.scrollHeight;
+              window.parent.postMessage({ frameHeight: height }, "https://f3nation.com");
+            }
+
+            window.addEventListener("load", sendHeight);
+            window.addEventListener("resize", sendHeight);
+
+            new MutationObserver(sendHeight).observe(document.body, {
+              childList: true,
+              subtree: true,
+              attributes: true
+            });
+          `}
+        </Script>
       </body>
     </html>
   );
