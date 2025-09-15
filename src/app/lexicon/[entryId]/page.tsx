@@ -7,9 +7,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getEntryByIdFromDatabase } from '@/lib/api';
 import { SuggestEditsButton } from '@/components/shared/SuggestEditsButton';
+import { CopyEntryUrlButton } from '@/components/shared/CopyEntryUrlButton';
 
 export async function generateMetadata({ params }: { params: Promise<{ entryId: string }> }): Promise<Metadata> {
-  const { entryId } = await params;
+  const { entryId: rawEntryId } = await params;
+  const entryId = decodeURIComponent(rawEntryId);
   const entry = await getEntryByIdFromDatabase(entryId);
 
   if (!entry || entry.type !== 'lexicon') {
@@ -52,7 +54,8 @@ export async function generateMetadata({ params }: { params: Promise<{ entryId: 
 }
 
 export default async function LexiconEntryPage({ params }: { params: Promise<{ entryId: string }> }) {
-    const { entryId } = await params;
+    const { entryId: rawEntryId } = await params;
+    const entryId = decodeURIComponent(rawEntryId);
 
     const entry = await getEntryByIdFromDatabase(entryId);
 
@@ -85,7 +88,8 @@ export default async function LexiconEntryPage({ params }: { params: Promise<{ e
                         <h3 className="text-xl font-semibold mb-2">Description</h3>
                         <p className="text-gray-700 dark:text-gray-300 mb-6">{lexiconEntry.description}</p>
 
-                        <div className="flex justify-end">
+                        <div className="flex justify-end gap-2">
+                            <CopyEntryUrlButton entry={lexiconEntry} />
                             <SuggestEditsButton entry={lexiconEntry} />
                         </div>
                     </CardContent>
