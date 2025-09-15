@@ -36,39 +36,50 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}
         suppressHydrationWarning={true}
       >
-        {isProxied ? (
-          <iframe
-            src="/f3-header"
-            style={{ width: '100%', height: '70px', border: 'none' }}
-          ></iframe>
-        ) : (
-          <Header />
-        )}
+        {!isProxied && <Header />}
         <main className="flex-grow">{children}</main>
-        {isProxied ? (
-          <iframe
-            src="/f3-footer"
-            style={{ width: '100%', height: '100px', border: 'none' }}
-          ></iframe>
-        ) : (
-          <Footer />
-        )}
+        {!isProxied && <Footer />}
         <Toaster />
+
         <Script id="iframe-height-reporter" strategy="afterInteractive">
           {`
+            let lastHeight = 0;
+
             function sendHeight() {
-              const height = document.documentElement.scrollHeight;
-              window.parent.postMessage({ frameHeight: height }, "https://f3nation.com");
+              const height = Math.max(
+                document.documentElement.scrollHeight,
+                document.documentElement.offsetHeight,
+                document.body.scrollHeight,
+                document.body.offsetHeight
+              );
+
+              if (height !== lastHeight) {
+                lastHeight = height;
+                window.parent.postMessage({ frameHeight: height }, "https://f3nation.com");
+              }
             }
 
+            // Send height on various events
             window.addEventListener("load", sendHeight);
             window.addEventListener("resize", sendHeight);
+            window.addEventListener("DOMContentLoaded", sendHeight);
 
-            new MutationObserver(sendHeight).observe(document.body, {
+            // Enhanced mutation observer for content changes
+            const observer = new MutationObserver(() => {
+              // Debounce the height calculation
+              setTimeout(sendHeight, 100);
+            });
+
+            observer.observe(document.body, {
               childList: true,
               subtree: true,
-              attributes: true
+              attributes: true,
+              attributeFilter: ['style', 'class'],
+              characterData: true
             });
+
+            // Additional polling as fallback
+            setInterval(sendHeight, 1000);
           `}
         </Script>
       </body>
