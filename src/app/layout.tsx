@@ -1,11 +1,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
+import { ConditionalLayout } from '@/components/layout/ConditionalLayout';
 import { Toaster } from '@/components/ui/toaster';
 import { Geist } from 'next/font/google';
 import { Geist_Mono } from 'next/font/google';
-import { headers } from 'next/headers';
 import Script from 'next/script';
 
 const geistSans = Geist({
@@ -23,22 +21,18 @@ export const metadata: Metadata = {
   description: 'The official Exicon and Lexicon for F3 Nation.',
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const isProxied = (await headers()).has('X-F3-Worker-Proxy');
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}
         suppressHydrationWarning={true}
       >
-        {!isProxied && <Header />}
-        <main className="flex-grow">{children}</main>
-        {!isProxied && <Footer />}
+        <ConditionalLayout>{children}</ConditionalLayout>
         <Toaster />
 
         <Script id="iframe-height-reporter" strategy="afterInteractive">
