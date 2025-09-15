@@ -227,12 +227,12 @@ export function EntryCard({ entry }: EntryCardProps) {
 
   const handleCopyEntryContent = async (event: React.MouseEvent) => {
     event.stopPropagation();
-    const content = `Name: ${entry.name}\n\nDescription: ${entry.description}`;
+    const url = `https://f3nation.com/${entry.type === 'exicon' ? 'exicon' : 'lexicon'}/${entry.id}`;
     try {
-      await navigator.clipboard.writeText(content);
-      toast({ title: "Entry Content Copied!", description: "Name and description copied to clipboard." });
+      await navigator.clipboard.writeText(url);
+      toast({ title: `${entry.name} URL Copied!`, description: "The link has been copied to your clipboard." });
     } catch {
-      toast({ title: "Failed to Copy Content", description: "Could not copy entry content.", variant: "destructive" });
+      toast({ title: "Failed to Copy URL", description: "Could not copy the entry URL.", variant: "destructive" });
     }
   };
 
@@ -270,7 +270,7 @@ export function EntryCard({ entry }: EntryCardProps) {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Copy Name & Description</p>
+                    <p>Copy Entry URL</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

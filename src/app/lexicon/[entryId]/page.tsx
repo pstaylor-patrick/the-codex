@@ -3,8 +3,52 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import type { LexiconEntry } from '@/lib/types';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getEntryByIdFromDatabase } from '@/lib/api';
+
+export async function generateMetadata({ params }: { params: Promise<{ entryId: string }> }): Promise<Metadata> {
+  const { entryId } = await params;
+  const entry = await getEntryByIdFromDatabase(entryId);
+
+  if (!entry || entry.type !== 'lexicon') {
+    return {
+      title: 'Entry Not Found - F3 Lexicon',
+      description: 'The requested lexicon entry could not be found.',
+    };
+  }
+
+  const lexiconEntry = entry as LexiconEntry;
+  const title = `${lexiconEntry.name} - F3 Lexicon`;
+  const description = lexiconEntry.description || `Learn about ${lexiconEntry.name} in the F3 Lexicon.`;
+  const url = `https://f3nation.com/lexicon/${entryId}`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: 'F3 Nation Codex',
+      type: 'article',
+      images: [
+        {
+          url: '/og-lexicon.png',
+          width: 1200,
+          height: 630,
+          alt: `${lexiconEntry.name} - F3 Lexicon Term`,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: ['/og-lexicon.png'],
+    },
+  };
+}
 
 export default async function LexiconEntryPage({ params }: { params: Promise<{ entryId: string }> }) {
     const { entryId } = await params;
