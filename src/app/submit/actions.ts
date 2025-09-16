@@ -85,7 +85,7 @@ async function sendSubmissionNotification(
       hasFromEmail: !!process.env.FROM_EMAIL,
       submitterEmail,
       submitterName,
-      entryName: isEdit
+      entryName: type === 'edit'
         ? (submissionData as EditEntrySuggestionData).entryName
         : (submissionData as NewEntrySuggestionData).name
     });
