@@ -29,7 +29,18 @@ async function sendStatusUpdateNotification(
   submission: UserSubmissionBase<any>,
   status: 'approved' | 'rejected'
 ) {
-  if (!process.env.SENDGRID_API_KEY || !process.env.FROM_EMAIL || !submission.submitterEmail) {
+  if (!process.env.SENDGRID_API_KEY) {
+    console.warn('SENDGRID_API_KEY not configured - skipping status update email');
+    return;
+  }
+
+  if (!process.env.FROM_EMAIL) {
+    console.warn('FROM_EMAIL not configured - skipping status update email');
+    return;
+  }
+
+  if (!submission.submitterEmail) {
+    console.log('No submitter email provided - skipping status update email');
     return;
   }
 
@@ -61,9 +72,21 @@ async function sendStatusUpdateNotification(
         `
     };
 
+    console.log(`Sending ${status} notification email to: ${submission.submitterEmail}`);
     await sgMail.send(msg);
+    console.log(`${status} notification email sent successfully to: ${submission.submitterEmail}`);
   } catch (error) {
     console.error('Error sending status update email:', error);
+    console.error('Status update email error details:', {
+      hasApiKey: !!process.env.SENDGRID_API_KEY,
+      hasFromEmail: !!process.env.FROM_EMAIL,
+      submitterEmail: submission.submitterEmail,
+      submitterName: submission.submitterName,
+      status,
+      entryName: submission.submissionType === 'edit'
+        ? (submission.data as EditEntrySuggestionData).entryName
+        : (submission.data as NewEntrySuggestionData).name
+    });
   }
 }
 
@@ -137,16 +160,22 @@ export async function updateSubmissionStatusInDatabase(
 
   // Send email notification if submission data is provided and status is approved/rejected
   if (submission && (status === 'approved' || status === 'rejected')) {
+    console.log(`Attempting to send ${status} email for submission:`, {
+      submissionId: id,
+      submitterEmail: submission.submitterEmail,
+      submitterName: submission.submitterName,
+      submissionType: submission.submissionType
+    });
     await sendStatusUpdateNotification(submission, status);
+  } else {
+    console.log(`Skipping email notification - submission: ${!!submission}, status: ${status}`);
   }
 }
 
 export async function applyApprovedSubmissionToDatabase(submission: UserSubmissionBase<any>): Promise<EntryWithReferences> {
   const result = await apiApplyApprovedSubmissionToDatabase(submission);
 
-  // Send approval email notification
-  await sendStatusUpdateNotification(submission, 'approved');
-
+  // Note: Email notification is handled by updateSubmissionStatusInDatabase when called after this function
   return result;
 }
 

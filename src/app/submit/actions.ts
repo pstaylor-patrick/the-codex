@@ -19,8 +19,13 @@ async function sendSubmissionNotification(
   submitterEmail?: string,
   submitterName?: string
 ) {
-  if (!process.env.SENDGRID_API_KEY || !process.env.FROM_EMAIL) {
-    console.warn('SendGrid not configured - skipping email notification');
+  if (!process.env.SENDGRID_API_KEY) {
+    console.warn('SENDGRID_API_KEY not configured - skipping email notification');
+    return;
+  }
+
+  if (!process.env.FROM_EMAIL) {
+    console.warn('FROM_EMAIL not configured - skipping email notification');
     return;
   }
 
@@ -46,30 +51,44 @@ async function sendSubmissionNotification(
         `
       };
 
+      console.log(`Sending confirmation email to: ${submitterEmail}`);
       await sgMail.send(submitterMsg);
+      console.log(`Confirmation email sent successfully to: ${submitterEmail}`);
+    } else {
+      console.log('No submitter email provided - skipping user confirmation email');
     }
 
-    if (process.env.ADMIN_EMAIL) {
-      const adminMsg = {
-        to: process.env.ADMIN_EMAIL,
-        from: process.env.FROM_EMAIL!,
-        subject: `New ${isEdit ? 'Edit' : 'Entry'} Submission: ${entryName}`,
-        html: `
-          <h2>New Submission Received</h2>
-          <p><strong>Type:</strong> ${isEdit ? 'Edit Suggestion' : 'New Entry'}</p>
-          <p><strong>Entry:</strong> ${entryName}</p>
-          <p><strong>Submitter:</strong> ${submitterName || 'Anonymous'} ${submitterEmail ? `(${submitterEmail})` : ''}</p>
-          <p><strong>Description:</strong> ${isEdit ? 'Edit to existing entry' : (submissionData as NewEntrySuggestionData).description?.substring(0, 200) + '...'}</p>
-          <br>
-          <p>Please review this submission in the admin panel.</p>
-        `
-      };
+    // Send admin notification to the same email address as FROM_EMAIL (support@f3nation.com)
+    const adminMsg = {
+      to: process.env.FROM_EMAIL!, // Admin receives at support@f3nation.com
+      from: process.env.FROM_EMAIL!,
+      subject: `New ${isEdit ? 'Edit' : 'Entry'} Submission: ${entryName}`,
+      html: `
+        <h2>New Submission Received</h2>
+        <p><strong>Type:</strong> ${isEdit ? 'Edit Suggestion' : 'New Entry'}</p>
+        <p><strong>Entry:</strong> ${entryName}</p>
+        <p><strong>Submitter:</strong> ${submitterName || 'Anonymous'} ${submitterEmail ? `(${submitterEmail})` : ''}</p>
+        <p><strong>Description:</strong> ${isEdit ? 'Edit to existing entry' : (submissionData as NewEntrySuggestionData).description?.substring(0, 200) + '...'}</p>
+        <br>
+        <p>Please review this submission in the admin panel.</p>
+      `
+    };
 
-      await sgMail.send(adminMsg);
-    }
+    console.log(`Sending admin notification email to: ${process.env.FROM_EMAIL}`);
+    await sgMail.send(adminMsg);
+    console.log(`Admin notification email sent successfully to: ${process.env.FROM_EMAIL}`);
 
   } catch (error) {
     console.error('Error sending email notification:', error);
+    console.error('Email error details:', {
+      hasApiKey: !!process.env.SENDGRID_API_KEY,
+      hasFromEmail: !!process.env.FROM_EMAIL,
+      submitterEmail,
+      submitterName,
+      entryName: isEdit
+        ? (submissionData as EditEntrySuggestionData).entryName
+        : (submissionData as NewEntrySuggestionData).name
+    });
   }
 }
 
