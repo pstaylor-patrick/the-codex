@@ -6,6 +6,7 @@ import { Copy, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { AnyEntry } from '@/lib/types';
 import { copyToClipboard, isInIframe, showCopyPrompt } from '@/lib/clipboard';
+import { generateEntryUrl } from '@/lib/route-utils';
 
 interface CopyEntryUrlButtonProps {
   entry: AnyEntry;
@@ -16,8 +17,7 @@ export function CopyEntryUrlButton({ entry }: CopyEntryUrlButtonProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    const encodedId = encodeURIComponent(entry.id);
-    const url = `https://f3nation.com/${entry.type === 'exicon' ? 'exicon' : 'lexicon'}?entryId=${encodedId}`;
+    const url = generateEntryUrl(entry.id, entry.type as 'exicon' | 'lexicon');
 
     const result = await copyToClipboard(url);
 
