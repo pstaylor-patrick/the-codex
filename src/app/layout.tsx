@@ -38,6 +38,21 @@ export default function RootLayout({
         <Script id="iframe-height-reporter" strategy="afterInteractive">
           {`
             let lastHeight = 0;
+            let isInIframe = false;
+
+            // Check if we're in an iframe
+            try {
+              isInIframe = window !== window.parent;
+            } catch (e) {
+              isInIframe = true;
+            }
+
+            // Remove min-height constraint when in iframe to prevent double scroll
+            if (isInIframe) {
+              document.documentElement.style.height = 'auto';
+              document.body.style.minHeight = 'auto';
+              document.body.style.height = 'auto';
+            }
 
             function sendHeight() {
               const height = Math.max(
@@ -47,33 +62,41 @@ export default function RootLayout({
                 document.body.offsetHeight
               );
 
-              if (height !== lastHeight) {
+              if (height !== lastHeight && isInIframe) {
                 lastHeight = height;
-                window.parent.postMessage({ frameHeight: height }, "https://f3nation.com");
+                window.parent.postMessage({
+                  type: 'frameHeight',
+                  frameHeight: height
+                }, "https://f3nation.com");
               }
             }
 
-            // Send height on various events
-            window.addEventListener("load", sendHeight);
-            window.addEventListener("resize", sendHeight);
-            window.addEventListener("DOMContentLoaded", sendHeight);
+            if (isInIframe) {
+              // Send height on various events
+              window.addEventListener("load", sendHeight);
+              window.addEventListener("resize", sendHeight);
+              window.addEventListener("DOMContentLoaded", sendHeight);
 
-            // Enhanced mutation observer for content changes
-            const observer = new MutationObserver(() => {
-              // Debounce the height calculation
-              setTimeout(sendHeight, 100);
-            });
+              // Enhanced mutation observer for content changes
+              const observer = new MutationObserver(() => {
+                // Debounce the height calculation
+                setTimeout(sendHeight, 100);
+              });
 
-            observer.observe(document.body, {
-              childList: true,
-              subtree: true,
-              attributes: true,
-              attributeFilter: ['style', 'class'],
-              characterData: true
-            });
+              observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['style', 'class'],
+                characterData: true
+              });
 
-            // Additional polling as fallback
-            setInterval(sendHeight, 1000);
+              // Additional polling as fallback
+              setInterval(sendHeight, 1000);
+
+              // Initial height send
+              setTimeout(sendHeight, 500);
+            }
           `}
         </Script>
       </body>
