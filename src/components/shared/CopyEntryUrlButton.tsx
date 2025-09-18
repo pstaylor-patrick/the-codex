@@ -16,7 +16,7 @@ export function CopyEntryUrlButton({ entry }: CopyEntryUrlButtonProps) {
 
   const handleCopy = async () => {
     const encodedId = encodeURIComponent(entry.id);
-    const url = `https://f3nation.com/${entry.type === 'exicon' ? 'exicon' : 'lexicon'}/${encodedId}`;
+    const url = `https://f3nation.com/${entry.type === 'exicon' ? 'exicon' : 'lexicon'}?entryId=${encodedId}`;
 
     try {
       await navigator.clipboard.writeText(url);

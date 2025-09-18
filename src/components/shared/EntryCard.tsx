@@ -107,7 +107,7 @@ const renderDescriptionWithMentions = (
     parts.push(
       <HoverCard key={`mention-${mention.index}-${mention.entry.id}`} openDelay={200} closeDelay={100}>
         <HoverCardTrigger asChild>
-          <Link href={`/${mention.entry.type === 'exicon' ? 'exicon' : 'lexicon'}/${mention.entry.id}`}>
+          <Link href={`/${mention.entry.type === 'exicon' ? 'exicon' : 'lexicon'}?entryId=${mention.entry.id}`}>
             <span className={`${colorClass} underline hover:no-underline cursor-pointer font-medium transition-colors duration-200`}>
               {mention.text}
             </span>
@@ -158,7 +158,7 @@ const renderDescriptionWithMentions = (
 
             <div className="pt-2 border-t">
               <Link
-                href={mention.entry.type === 'exicon' ? `/exicon/${mention.entry.id}` : `/lexicon/${mention.entry.id}`}
+                href={mention.entry.type === 'exicon' ? `/exicon?entryId=${mention.entry.id}` : `/lexicon?entryId=${mention.entry.id}`}
                 className="text-xs text-blue-500 hover:text-blue-600 hover:underline"
               >
                 View full entry →
@@ -228,7 +228,7 @@ export function EntryCard({ entry }: EntryCardProps) {
   const handleCopyEntryContent = async (event: React.MouseEvent) => {
     event.stopPropagation();
     const encodedId = encodeURIComponent(entry.id);
-    const url = `https://f3nation.com/${entry.type === 'exicon' ? 'exicon' : 'lexicon'}/${encodedId}`;
+    const url = `https://f3nation.com/${entry.type === 'exicon' ? 'exicon' : 'lexicon'}?entryId=${encodedId}`;
     try {
       await navigator.clipboard.writeText(url);
       toast({ title: `${entry.name} URL Copied!`, description: "The link has been copied to your clipboard." });

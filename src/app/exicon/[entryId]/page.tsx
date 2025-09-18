@@ -12,9 +12,10 @@ import CopyLinkButton from '@/components/shared/CopyLinkButton';
 import { SuggestEditsButton } from '@/components/shared/SuggestEditsButton';
 import { CopyEntryUrlButton } from '@/components/shared/CopyEntryUrlButton';
 
-export async function generateMetadata({ params }: { params: Promise<{ entryId: string }> }): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: { params: Promise<{ entryId: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }): Promise<Metadata> {
   const { entryId: rawEntryId } = await params;
-  const entryId = decodeURIComponent(rawEntryId);
+  const searchParamsResolved = await searchParams;
+  const entryId = searchParamsResolved.entryId ? decodeURIComponent(String(searchParamsResolved.entryId)) : decodeURIComponent(rawEntryId);
   const entry = await getEntryByIdFromDatabase(entryId);
 
   if (!entry || entry.type !== 'exicon') {
@@ -57,9 +58,10 @@ export async function generateMetadata({ params }: { params: Promise<{ entryId: 
   };
 }
 
-export default async function ExiconEntryPage({ params }: { params: Promise<{ entryId: string }> }) {
+export default async function ExiconEntryPage({ params, searchParams }: { params: Promise<{ entryId: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
     const { entryId: rawEntryId } = await params;
-    const entryId = decodeURIComponent(rawEntryId);
+    const searchParamsResolved = await searchParams;
+    const entryId = searchParamsResolved.entryId ? decodeURIComponent(String(searchParamsResolved.entryId)) : decodeURIComponent(rawEntryId);
 
     const entry = await getEntryByIdFromDatabase(entryId);
 

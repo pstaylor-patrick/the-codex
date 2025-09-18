@@ -54,7 +54,14 @@ function normalizeAliases(aliases: unknown, entryId: string): { id: string; name
     : [];
 }
 
-export default async function ExiconPage() {
+export default async function ExiconPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const searchParamsResolved = await searchParams;
+
+  if (searchParamsResolved.entryId) {
+    const entryId = String(searchParamsResolved.entryId);
+    const { redirect } = await import('next/navigation');
+    redirect(`/exicon/${encodeURIComponent(entryId)}`);
+  }
 
   let allEntries: AnyEntry[] = [];
   let enrichedEntries: ExiconEntry[] = [];
