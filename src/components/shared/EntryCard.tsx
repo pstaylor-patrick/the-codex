@@ -13,6 +13,7 @@ import { SuggestionEditForm } from '@/components/submission/SuggestionEditForm';
 import { useToast } from '@/hooks/use-toast';
 import { getYouTubeEmbedUrl } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { copyToClipboard, isInIframe, showCopyPrompt } from '@/lib/clipboard';
 
 interface EntryCardProps {
   entry: AnyEntry & {
@@ -216,11 +217,29 @@ export function EntryCard({ entry }: EntryCardProps) {
 
   const handleCopyVideoLink = async () => {
     if (entry.type === 'exicon' && (entry as ExiconEntry).videoLink) {
-      try {
-        await navigator.clipboard.writeText((entry as ExiconEntry).videoLink!);
-        toast({ title: "Video Link Copied!", description: "The video link has been copied to your clipboard." });
-      } catch {
-        toast({ title: "Failed to Copy", description: "Could not copy the video link.", variant: "destructive" });
+      const videoUrl = (entry as ExiconEntry).videoLink!;
+      const result = await copyToClipboard(videoUrl);
+
+      if (result.success) {
+        toast({
+          title: "Video Link Copied!",
+          description: `The video link has been copied to your clipboard using ${result.method}.`
+        });
+      } else {
+        // If all automatic methods fail, show manual copy prompt
+        if (isInIframe()) {
+          showCopyPrompt(videoUrl);
+          toast({
+            title: "Manual Copy Required",
+            description: "Please copy the video link from the popup dialog.",
+          });
+        } else {
+          toast({
+            title: "Failed to Copy",
+            description: result.error || "Could not copy the video link.",
+            variant: "destructive"
+          });
+        }
       }
     }
   };
@@ -229,11 +248,29 @@ export function EntryCard({ entry }: EntryCardProps) {
     event.stopPropagation();
     const encodedId = encodeURIComponent(entry.id);
     const url = `https://f3nation.com/${entry.type === 'exicon' ? 'exicon' : 'lexicon'}?entryId=${encodedId}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      toast({ title: `${entry.name} URL Copied!`, description: "The link has been copied to your clipboard." });
-    } catch {
-      toast({ title: "Failed to Copy URL", description: "Could not copy the entry URL.", variant: "destructive" });
+
+    const result = await copyToClipboard(url);
+
+    if (result.success) {
+      toast({
+        title: `${entry.name} URL Copied!`,
+        description: `The link has been copied to your clipboard using ${result.method}.`
+      });
+    } else {
+      // If all automatic methods fail, show manual copy prompt
+      if (isInIframe()) {
+        showCopyPrompt(url);
+        toast({
+          title: "Manual Copy Required",
+          description: "Please copy the link from the popup dialog.",
+        });
+      } else {
+        toast({
+          title: "Failed to Copy URL",
+          description: result.error || "Could not copy the entry URL.",
+          variant: "destructive"
+        });
+      }
     }
   };
 

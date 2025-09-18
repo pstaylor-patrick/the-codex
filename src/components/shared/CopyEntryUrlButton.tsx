@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Copy, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { AnyEntry } from '@/lib/types';
+import { copyToClipboard, isInIframe, showCopyPrompt } from '@/lib/clipboard';
 
 interface CopyEntryUrlButtonProps {
   entry: AnyEntry;
@@ -18,20 +19,30 @@ export function CopyEntryUrlButton({ entry }: CopyEntryUrlButtonProps) {
     const encodedId = encodeURIComponent(entry.id);
     const url = `https://f3nation.com/${entry.type === 'exicon' ? 'exicon' : 'lexicon'}?entryId=${encodedId}`;
 
-    try {
-      await navigator.clipboard.writeText(url);
+    const result = await copyToClipboard(url);
+
+    if (result.success) {
       toast({
         title: `${entry.name} URL Copied!`,
-        description: "The link has been copied to your clipboard."
+        description: `The link has been copied to your clipboard using ${result.method}.`
       });
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast({
-        title: "Failed to Copy URL",
-        description: "Could not copy the entry URL.",
-        variant: "destructive"
-      });
+    } else {
+      // If all automatic methods fail, show manual copy prompt
+      if (isInIframe()) {
+        showCopyPrompt(url);
+        toast({
+          title: "Manual Copy Required",
+          description: "Please copy the link from the popup dialog.",
+        });
+      } else {
+        toast({
+          title: "Failed to Copy URL",
+          description: result.error || "Could not copy the entry URL.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
