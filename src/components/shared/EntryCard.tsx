@@ -15,7 +15,6 @@ import { getYouTubeEmbedUrl } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { copyToClipboard, isInIframe as isInIframeUtil, showCopyPrompt } from '@/lib/clipboard';
 import { generateEntryUrl, getEntryBaseUrl } from '@/lib/route-utils';
-import { useIframeModal } from '@/hooks/use-iframe-modal';
 
 interface EntryCardProps {
   entry: AnyEntry & {
@@ -188,7 +187,6 @@ export function EntryCard({ entry }: EntryCardProps) {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSuggestEditFormOpen, setIsSuggestEditFormOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const { isInIframe, openModal, closeModal } = useIframeModal();
 
   const previewDescriptionContent = useMemo(() => {
     if (!entry.description) return '';
@@ -276,15 +274,6 @@ export function EntryCard({ entry }: EntryCardProps) {
     }
   };
 
-  const handleCardClick = () => {
-    if (isInIframe) {
-      // Use parent window modal
-      openModal(entry);
-    } else {
-      // Use regular modal
-      setIsDetailModalOpen(true);
-    }
-  };
 
   const videoLink = entry.type === 'exicon' ? (entry as ExiconEntry).videoLink : undefined;
   const embedUrl = videoLink ? getYouTubeEmbedUrl(videoLink) : null;
@@ -355,15 +344,9 @@ export function EntryCard({ entry }: EntryCardProps) {
   return (
     <div className="relative">
       <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-        {isInIframe ? (
-          <div onClick={handleCardClick}>
-            {CardComponent}
-          </div>
-        ) : (
-          <DialogTrigger asChild>
-            {CardComponent}
-          </DialogTrigger>
-        )}
+        <DialogTrigger asChild>
+          {CardComponent}
+        </DialogTrigger>
 
       <DialogContent className="sm:max-w-[725px] max-h-[90vh] flex flex-col" onOpenAutoFocus={e => e.preventDefault()}>
         <DialogHeader className="flex-shrink-0">
