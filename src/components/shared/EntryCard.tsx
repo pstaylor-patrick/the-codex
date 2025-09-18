@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getYouTubeEmbedUrl } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { copyToClipboard, isInIframe, showCopyPrompt } from '@/lib/clipboard';
+import { generateEntryUrl, getEntryBaseUrl } from '@/lib/route-utils';
 
 interface EntryCardProps {
   entry: AnyEntry & {
@@ -108,7 +109,7 @@ const renderDescriptionWithMentions = (
     parts.push(
       <HoverCard key={`mention-${mention.index}-${mention.entry.id}`} openDelay={200} closeDelay={100}>
         <HoverCardTrigger asChild>
-          <Link href={`/${mention.entry.type === 'exicon' ? 'exicon' : 'lexicon'}?entryId=${mention.entry.id}`}>
+          <Link href={`/${getEntryBaseUrl(mention.entry.type as 'exicon' | 'lexicon')}?entryId=${mention.entry.id}`}>
             <span className={`${colorClass} underline hover:no-underline cursor-pointer font-medium transition-colors duration-200`}>
               {mention.text}
             </span>
@@ -159,7 +160,7 @@ const renderDescriptionWithMentions = (
 
             <div className="pt-2 border-t">
               <Link
-                href={mention.entry.type === 'exicon' ? `/exicon?entryId=${mention.entry.id}` : `/lexicon?entryId=${mention.entry.id}`}
+                href={`/${getEntryBaseUrl(mention.entry.type as 'exicon' | 'lexicon')}?entryId=${mention.entry.id}`}
                 className="text-xs text-blue-500 hover:text-blue-600 hover:underline"
               >
                 View full entry →
@@ -246,8 +247,7 @@ export function EntryCard({ entry }: EntryCardProps) {
 
   const handleCopyEntryContent = async (event: React.MouseEvent) => {
     event.stopPropagation();
-    const encodedId = encodeURIComponent(entry.id);
-    const url = `https://f3nation.com/${entry.type === 'exicon' ? 'exicon' : 'lexicon'}?entryId=${encodedId}`;
+    const url = generateEntryUrl(entry.id, entry.type as 'exicon' | 'lexicon');
 
     const result = await copyToClipboard(url);
 
