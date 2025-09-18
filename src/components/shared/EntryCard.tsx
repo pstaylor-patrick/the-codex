@@ -241,9 +241,10 @@ export function EntryCard({ entry }: EntryCardProps) {
   const embedUrl = videoLink ? getYouTubeEmbedUrl(videoLink) : null;
 
   return (
-    <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-      <DialogTrigger asChild>
-        <Card className="w-full shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col h-full cursor-pointer">
+    <div className="relative">
+      <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
+        <DialogTrigger asChild>
+          <Card className="w-full shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col h-full cursor-pointer">
           <CardHeader>
             <div className="flex justify-between items-start gap-2">
               <div className="flex-grow">
@@ -406,5 +407,6 @@ export function EntryCard({ entry }: EntryCardProps) {
         </div>
       </DialogContent>
     </Dialog>
+    </div>
   );
 }
