@@ -6,6 +6,18 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+/* Iframe modal fixes */
+#dialog-portal-container {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 50 !important;
+  pointer-events: none !important;
+}
+
+#dialog-portal-container > * {
+  pointer-events: auto !important;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
