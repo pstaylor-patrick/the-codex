@@ -59,8 +59,28 @@ export default async function ExiconPage({ searchParams }: { searchParams: Promi
 
   if (searchParamsResolved.entryId) {
     const entryId = String(searchParamsResolved.entryId);
-    const { redirect } = await import('next/navigation');
-    redirect(`/exicon/${encodeURIComponent(entryId)}`);
+
+    // Check if the entry exists and get its type
+    try {
+      const entry = await getEntryByIdFromDatabase(entryId);
+      const { redirect } = await import('next/navigation');
+
+      if (entry) {
+        // Redirect to the correct section based on entry type
+        if (entry.type === 'exicon') {
+          redirect(`/exicon/${encodeURIComponent(entryId)}`);
+        } else if (entry.type === 'lexicon') {
+          redirect(`/lexicon/${encodeURIComponent(entryId)}`);
+        }
+      } else {
+        // Entry not found, just redirect to the current section
+        redirect(`/exicon/${encodeURIComponent(entryId)}`);
+      }
+    } catch (error) {
+      // If there's an error fetching, fallback to current section
+      const { redirect } = await import('next/navigation');
+      redirect(`/exicon/${encodeURIComponent(entryId)}`);
+    }
   }
 
   let allEntries: AnyEntry[] = [];
