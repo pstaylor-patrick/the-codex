@@ -13,8 +13,9 @@ import { SuggestionEditForm } from '@/components/submission/SuggestionEditForm';
 import { useToast } from '@/hooks/use-toast';
 import { getYouTubeEmbedUrl } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { copyToClipboard, isInIframe, showCopyPrompt } from '@/lib/clipboard';
+import { copyToClipboard, isInIframe as isInIframeUtil, showCopyPrompt } from '@/lib/clipboard';
 import { generateEntryUrl, getEntryBaseUrl } from '@/lib/route-utils';
+import { useIframeModal } from '@/hooks/use-iframe-modal';
 
 interface EntryCardProps {
   entry: AnyEntry & {
@@ -187,6 +188,7 @@ export function EntryCard({ entry }: EntryCardProps) {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSuggestEditFormOpen, setIsSuggestEditFormOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const { isInIframe, openModal, closeModal } = useIframeModal();
 
   const previewDescriptionContent = useMemo(() => {
     if (!entry.description) return '';
@@ -228,7 +230,7 @@ export function EntryCard({ entry }: EntryCardProps) {
         });
       } else {
         // If all automatic methods fail, show manual copy prompt
-        if (isInIframe()) {
+        if (isInIframeUtil()) {
           showCopyPrompt(videoUrl);
           toast({
             title: "Manual Copy Required",
@@ -258,7 +260,7 @@ export function EntryCard({ entry }: EntryCardProps) {
       });
     } else {
       // If all automatic methods fail, show manual copy prompt
-      if (isInIframe()) {
+      if (isInIframeUtil()) {
         showCopyPrompt(url);
         toast({
           title: "Manual Copy Required",
@@ -274,74 +276,94 @@ export function EntryCard({ entry }: EntryCardProps) {
     }
   };
 
+  const handleCardClick = () => {
+    if (isInIframe) {
+      // Use parent window modal
+      openModal(entry);
+    } else {
+      // Use regular modal
+      setIsDetailModalOpen(true);
+    }
+  };
+
   const videoLink = entry.type === 'exicon' ? (entry as ExiconEntry).videoLink : undefined;
   const embedUrl = videoLink ? getYouTubeEmbedUrl(videoLink) : null;
+
+  const CardComponent = (
+    <Card className="w-full shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col h-full cursor-pointer">
+      <CardHeader>
+        <div className="flex justify-between items-start gap-2">
+          <div className="flex-grow">
+            <CardTitle className="text-xl font-semibold text-primary">{entry.name}</CardTitle>
+            {entry.aliases && entry.aliases.length > 0 ? (
+              <p className="text-sm text-muted-foreground italic">
+                Also known as:{' '}
+                {entry.aliases
+                  .map(alias => (typeof alias === 'string' ? alias : alias.name))
+                  .join(', ')}
+              </p>
+            ) : null}
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCopyEntryContent}
+                  className="ml-auto flex-shrink-0 h-8 w-8 text-muted-foreground hover:text-accent"
+                  aria-label="Copy entry content"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Copy Entry URL</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </CardHeader>
+
+      <CardContent className="flex-grow space-y-3">
+        <div className="prose prose-sm max-w-none text-foreground break-words relative max-h-[4.5rem] overflow-hidden">
+          <div>
+            {renderDescriptionWithMentions(
+              previewDescriptionContent,
+              entry.resolvedMentionsData,
+              'default'
+            )}
+          </div>
+          {showGradient && (
+            <div className="absolute bottom-0 left-0 w-full h-6 bg-gradient-to-t from-card via-card/80 to-transparent" />
+          )}
+        </div>
+      </CardContent>
+
+      <CardFooter className="flex flex-wrap gap-2 pt-4 border-t mt-auto">
+        {entry.type === 'exicon' && Array.isArray((entry as ExiconEntry).tags) && (entry as ExiconEntry).tags.length > 0 ? (
+          (entry as ExiconEntry).tags.map(tag => (
+            <Badge key={tag.id} variant="secondary" className="font-normal">
+              {tag.name}
+            </Badge>
+          ))
+        ) : null}
+      </CardFooter>
+    </Card>
+  );
 
   return (
     <div className="relative">
       <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-        <DialogTrigger asChild>
-          <Card className="w-full shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col h-full cursor-pointer">
-          <CardHeader>
-            <div className="flex justify-between items-start gap-2">
-              <div className="flex-grow">
-                <CardTitle className="text-xl font-semibold text-primary">{entry.name}</CardTitle>
-                {entry.aliases && entry.aliases.length > 0 ? (
-                  <p className="text-sm text-muted-foreground italic">
-                    Also known as:{' '}
-                    {entry.aliases
-                      .map(alias => (typeof alias === 'string' ? alias : alias.name))
-                      .join(', ')}
-                  </p>
-                ) : null}
-              </div>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={handleCopyEntryContent}
-                      className="ml-auto flex-shrink-0 h-8 w-8 text-muted-foreground hover:text-accent"
-                      aria-label="Copy entry content"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Copy Entry URL</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </CardHeader>
-
-          <CardContent className="flex-grow space-y-3">
-            <div className="prose prose-sm max-w-none text-foreground break-words relative max-h-[4.5rem] overflow-hidden">
-              <div>
-                {renderDescriptionWithMentions(
-                  previewDescriptionContent,
-                  entry.resolvedMentionsData,
-                  'default'
-                )}
-              </div>
-              {showGradient && (
-                <div className="absolute bottom-0 left-0 w-full h-6 bg-gradient-to-t from-card via-card/80 to-transparent" />
-              )}
-            </div>
-          </CardContent>
-
-          <CardFooter className="flex flex-wrap gap-2 pt-4 border-t mt-auto">
-            {entry.type === 'exicon' && Array.isArray((entry as ExiconEntry).tags) && (entry as ExiconEntry).tags.length > 0 ? (
-              (entry as ExiconEntry).tags.map(tag => (
-                <Badge key={tag.id} variant="secondary" className="font-normal">
-                  {tag.name}
-                </Badge>
-              ))
-            ) : null}
-          </CardFooter>
-        </Card>
-      </DialogTrigger>
+        {isInIframe ? (
+          <div onClick={handleCardClick}>
+            {CardComponent}
+          </div>
+        ) : (
+          <DialogTrigger asChild>
+            {CardComponent}
+          </DialogTrigger>
+        )}
 
       <DialogContent className="sm:max-w-[725px] max-h-[90vh] flex flex-col" onOpenAutoFocus={e => e.preventDefault()}>
         <DialogHeader className="flex-shrink-0">
