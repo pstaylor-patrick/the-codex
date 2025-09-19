@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { getYouTubeEmbedUrl } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import type { ExiconEntry } from '@/lib/types';
@@ -11,6 +11,7 @@ import { getEntryByIdFromDatabase } from '@/lib/api';
 import CopyLinkButton from '@/components/shared/CopyLinkButton';
 import { SuggestEditsButton } from '@/components/shared/SuggestEditsButton';
 import { CopyEntryUrlButton } from '@/components/shared/CopyEntryUrlButton';
+import { BackButton } from '@/components/shared/BackButton';
 
 export async function generateMetadata({ params, searchParams }: { params: Promise<{ entryId: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }): Promise<Metadata> {
   const { entryId: rawEntryId } = await params;
@@ -79,11 +80,7 @@ export default async function ExiconEntryPage({ params, searchParams }: { params
     return (
         <div className="bg-gray-50 dark:bg-gray-950 min-h-screen p-8">
             <div className="max-w-4xl mx-auto">
-                <Button asChild variant="ghost" className="mb-6 text-blue-500 hover:text-blue-600">
-                    <Link href="/exicon">
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Exicon
-                    </Link>
-                </Button>
+                <BackButton entryType="exicon" className="mb-6 text-blue-500 hover:text-blue-600" />
                 <Card className="shadow-lg rounded-lg">
                     <CardHeader className="border-b">
                         <CardTitle className="text-3xl font-bold">{exiconEntry.name}</CardTitle>

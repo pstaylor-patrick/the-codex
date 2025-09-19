@@ -1,13 +1,11 @@
 import { notFound } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
 import type { LexiconEntry } from '@/lib/types';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { getEntryByIdFromDatabase } from '@/lib/api';
 import { SuggestEditsButton } from '@/components/shared/SuggestEditsButton';
 import { CopyEntryUrlButton } from '@/components/shared/CopyEntryUrlButton';
+import { BackButton } from '@/components/shared/BackButton';
 
 export async function generateMetadata({ params, searchParams }: { params: Promise<{ entryId: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }): Promise<Metadata> {
   const { entryId: rawEntryId } = await params;
@@ -74,11 +72,7 @@ export default async function LexiconEntryPage({ params, searchParams }: { param
     return (
         <div className="bg-gray-50 dark:bg-gray-950 min-h-screen p-8">
             <div className="max-w-4xl mx-auto">
-                <Button asChild variant="ghost" className="mb-6 text-blue-500 hover:text-blue-600">
-                    <Link href="/lexicon">
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Lexicon
-                    </Link>
-                </Button>
+                <BackButton entryType="lexicon" className="mb-6 text-blue-500 hover:text-blue-600" />
                 <Card className="shadow-lg rounded-lg">
                     <CardHeader className="border-b">
                         <CardTitle className="text-3xl font-bold">{lexiconEntry.name}</CardTitle>

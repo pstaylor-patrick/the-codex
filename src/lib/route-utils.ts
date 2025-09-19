@@ -22,3 +22,26 @@ export function generateEntryUrl(entryId: string, entryType: 'exicon' | 'lexicon
   const encodedId = encodeURIComponent(entryId);
   return `https://f3nation.com/${baseRoute}?entryId=${encodedId}`;
 }
+
+/**
+ * Determines if the current page is running in an iframe
+ */
+export function isInIframe(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    return window !== window.parent;
+  } catch (e) {
+    return true;
+  }
+}
+
+/**
+ * Gets the appropriate back URL for a given entry type, considering iframe context
+ */
+export function getBackUrl(entryType: 'exicon' | 'lexicon'): string {
+  if (isInIframe()) {
+    return `https://f3nation.com/${entryType}`;
+  }
+  return `/${entryType}`;
+}
