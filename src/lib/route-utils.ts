@@ -40,8 +40,10 @@ export function isInIframe(): boolean {
  * Gets the appropriate back URL for a given entry type, considering iframe context
  */
 export function getBackUrl(entryType: 'exicon' | 'lexicon'): string {
+  const baseRoute = getEntryBaseUrl(entryType);
+
   if (isInIframe()) {
-    return `https://f3nation.com/${entryType}`;
+    return `https://f3nation.com/${baseRoute}`;
   }
-  return `/${entryType}`;
+  return `/${baseRoute}`;
 }
