@@ -5,18 +5,62 @@ import { LexiconClientPageContent } from '../lexicon/LexiconClientPageContent';
 import { fetchAllEntries, getEntryByIdFromDatabase, fetchTagsFromDatabase } from '@/lib/api';
 import type { AnyEntry, LexiconEntry, Tag } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
 import { SuggestEditsButton } from '@/components/shared/SuggestEditsButton';
 import { CopyEntryUrlButton } from '@/components/shared/CopyEntryUrlButton';
+import { BackButton } from '@/components/shared/BackButton';
 
 
 
-export const metadata = {
-  title: 'F3 Lexicon - F3 Codex',
-  description: 'Explore F3 terminology in the Lexicon.',
-};
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const searchParamsResolved = await searchParams;
+
+  if (searchParamsResolved.entryId) {
+    const entryId = String(searchParamsResolved.entryId);
+
+    try {
+      const entry = await getEntryByIdFromDatabase(entryId);
+
+      if (entry && entry.type === 'lexicon') {
+        const title = `${entry.name} - F3 Lexicon`;
+        const description = entry.description || `Learn about ${entry.name} in the F3 Lexicon.`;
+        const url = `https://f3nation.com/lexicon-2?entryId=${entryId}`;
+
+        return {
+          title,
+          description,
+          openGraph: {
+            title,
+            description,
+            url,
+            siteName: 'F3 Nation Codex',
+            type: 'article',
+            images: [
+              {
+                url: '/og-lexicon.png',
+                width: 1200,
+                height: 630,
+                alt: `${entry.name} - F3 Lexicon Term`,
+              },
+            ],
+          },
+          twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+            images: ['/og-lexicon.png'],
+          },
+        };
+      }
+    } catch (error) {
+      console.error('Failed to generate metadata for entry:', error);
+    }
+  }
+
+  return {
+    title: 'F3 Lexicon - F3 Codex',
+    description: 'Explore F3 terminology in the Lexicon.',
+  };
+}
 
 const getUniqueMentionedIds = (entries: AnyEntry[]): string[] => {
   const allMentionedIds = entries.flatMap(entry => entry.mentionedEntries || []);
@@ -123,11 +167,7 @@ export default async function LexiconPage({ searchParams }: { searchParams: Prom
       <PageContainer>
         <div className="bg-gray-50 dark:bg-gray-950 min-h-screen p-8">
           <div className="max-w-4xl mx-auto">
-            <Button asChild variant="ghost" className="mb-6 text-blue-500 hover:text-blue-600">
-              <Link href="/lexicon-2">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Lexicon
-              </Link>
-            </Button>
+            <BackButton entryType="lexicon" className="mb-6 text-blue-500 hover:text-blue-600" />
             <Card className="shadow-lg rounded-lg">
               <CardHeader className="border-b">
                 <CardTitle className="text-3xl font-bold">{selectedEntry.name}</CardTitle>

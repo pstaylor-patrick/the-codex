@@ -4,7 +4,26 @@
 export function getEntryBaseUrl(entryType: 'exicon' | 'lexicon'): string {
   // Check if we're on lexicon-2 route
   if (typeof window !== 'undefined') {
-    const currentPath = window.location.pathname;
+    let currentPath = window.location.pathname;
+
+    // If we're in an iframe, try to get the parent's pathname from the URL
+    if (isInIframe()) {
+      try {
+        // Try to get parent URL if accessible
+        if (window.parent && window.parent.location) {
+          currentPath = window.parent.location.pathname;
+        }
+      } catch (e) {
+        // If we can't access parent, check the current URL or search params
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('entryId') && window.location.pathname === '/') {
+          // We might be on the root path but serving lexicon-2 content
+          // Check the referrer or other indicators
+          currentPath = window.location.pathname;
+        }
+      }
+    }
+
     if (currentPath.startsWith('/lexicon-2')) {
       return entryType === 'lexicon' ? 'lexicon-2' : 'exicon';
     }
@@ -40,10 +59,42 @@ export function isInIframe(): boolean {
  * Gets the appropriate back URL for a given entry type, considering iframe context
  */
 export function getBackUrl(entryType: 'exicon' | 'lexicon'): string {
-  const baseRoute = getEntryBaseUrl(entryType);
-
   if (isInIframe()) {
-    return `https://f3nation.com/${baseRoute}`;
+    // When in iframe, we need to detect the parent URL to determine the correct route
+    let parentHost = 'f3nation.com';
+    let baseRoute: string = entryType; // default
+
+    try {
+      // Try to get the parent window's URL
+      if (window.parent && window.parent.location) {
+        const parentUrl = window.parent.location.href;
+        if (parentUrl.includes('/lexicon-2')) {
+          baseRoute = entryType === 'lexicon' ? 'lexicon-2' : 'exicon';
+        } else if (parentUrl.includes('/lexicon')) {
+          baseRoute = 'lexicon';
+        } else if (parentUrl.includes('/exicon')) {
+          baseRoute = 'exicon';
+        }
+
+        // Extract host from parent URL
+        const parentHostMatch = parentUrl.match(/https?:\/\/([^\/]+)/);
+        if (parentHostMatch) {
+          parentHost = parentHostMatch[1];
+        }
+      }
+    } catch (e) {
+      // If we can't access parent URL, fall back to defaults
+      // Check our own URL for hints
+      const currentPath = window.location.pathname;
+      if (currentPath.startsWith('/lexicon-2')) {
+        baseRoute = entryType === 'lexicon' ? 'lexicon-2' : 'exicon';
+      }
+    }
+
+    return `https://${parentHost}/${baseRoute}`;
   }
+
+  // Not in iframe, use local routing
+  const baseRoute = getEntryBaseUrl(entryType);
   return `/${baseRoute}`;
 }
