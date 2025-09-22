@@ -5,10 +5,57 @@ import type { ExiconEntry, AnyEntry, Tag } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata = {
-  title: 'Exicon - F3 Codex',
-  description: 'Explore F3 exercises in the Exicon.',
-};
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const searchParamsResolved = await searchParams;
+
+  if (searchParamsResolved.entryId) {
+    const entryId = String(searchParamsResolved.entryId);
+
+    try {
+      const entry = await getEntryByIdFromDatabase(entryId);
+
+      if (entry && entry.type === 'exicon') {
+        const title = `${entry.name} - F3 Exicon`;
+        const description = entry.description || `Learn about the ${entry.name} exercise in the F3 Exicon.`;
+        const url = `https://f3nation.com/exicon?entryId=${entryId}`;
+        const tags = entry.tags?.map(tag => tag.name).join(', ') || '';
+
+        return {
+          title,
+          description,
+          openGraph: {
+            title,
+            description: tags ? `${description} Tags: ${tags}` : description,
+            url,
+            siteName: 'F3 Nation Codex',
+            type: 'article',
+            images: [
+              {
+                url: '/og-exicon.png',
+                width: 1200,
+                height: 630,
+                alt: `${entry.name} - F3 Exicon Exercise`,
+              },
+            ],
+          },
+          twitter: {
+            card: 'summary_large_image',
+            title,
+            description: tags ? `${description} Tags: ${tags}` : description,
+            images: ['/og-exicon.png'],
+          },
+        };
+      }
+    } catch (error) {
+      console.error('Failed to generate metadata for entry:', error);
+    }
+  }
+
+  return {
+    title: 'Exicon - F3 Codex',
+    description: 'Explore F3 exercises in the Exicon.',
+  };
+}
 
 const getUniqueMentionedIds = (entries: AnyEntry[]): string[] => {
   const allMentionedIds = entries.flatMap(entry => entry.mentionedEntries || []);

@@ -7,10 +7,56 @@ import type { AnyEntry, LexiconEntry, Tag } from '@/lib/types';
 
 
 
-export const metadata = {
-  title: 'F3 Lexicon - F3 Codex',
-  description: 'Explore F3 terminology in the Lexicon.',
-};
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const searchParamsResolved = await searchParams;
+
+  if (searchParamsResolved.entryId) {
+    const entryId = String(searchParamsResolved.entryId);
+
+    try {
+      const entry = await getEntryByIdFromDatabase(entryId);
+
+      if (entry && entry.type === 'lexicon') {
+        const title = `${entry.name} - F3 Lexicon`;
+        const description = entry.description || `Learn about ${entry.name} in the F3 Lexicon.`;
+        const url = `https://f3nation.com/lexicon?entryId=${entryId}`;
+
+        return {
+          title,
+          description,
+          openGraph: {
+            title,
+            description,
+            url,
+            siteName: 'F3 Nation Codex',
+            type: 'article',
+            images: [
+              {
+                url: '/og-lexicon.png',
+                width: 1200,
+                height: 630,
+                alt: `${entry.name} - F3 Lexicon Term`,
+              },
+            ],
+          },
+          twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+            images: ['/og-lexicon.png'],
+          },
+        };
+      }
+    } catch (error) {
+      console.error('Failed to generate metadata for entry:', error);
+    }
+  }
+
+  return {
+    title: 'F3 Lexicon - F3 Codex',
+    description: 'Explore F3 terminology in the Lexicon.',
+  };
+}
 
 const getUniqueMentionedIds = (entries: AnyEntry[]): string[] => {
   const allMentionedIds = entries.flatMap(entry => entry.mentionedEntries || []);
