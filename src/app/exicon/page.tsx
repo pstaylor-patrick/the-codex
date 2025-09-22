@@ -9,7 +9,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   const searchParamsResolved = await searchParams;
 
   if (searchParamsResolved.entryId) {
-    const entryId = String(searchParamsResolved.entryId);
+    const entryId = decodeURIComponent(String(searchParamsResolved.entryId));
 
     try {
       const entry = await getEntryByIdFromDatabase(entryId);
@@ -105,7 +105,7 @@ export default async function ExiconPage({ searchParams }: { searchParams: Promi
   const searchParamsResolved = await searchParams;
 
   if (searchParamsResolved.entryId) {
-    const entryId = String(searchParamsResolved.entryId);
+    const entryId = decodeURIComponent(String(searchParamsResolved.entryId));
 
     // Check if the entry exists and get its type
     try {

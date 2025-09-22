@@ -6,17 +6,20 @@ import { fetchAllEntries, getEntryByIdFromDatabase, fetchTagsFromDatabase } from
 import type { AnyEntry, ExiconEntry, Tag } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { SuggestEditsButton } from '@/components/shared/SuggestEditsButton';
 import { CopyEntryUrlButton } from '@/components/shared/CopyEntryUrlButton';
 import { BackButton } from '@/components/shared/BackButton';
+import CopyLinkButton from '@/components/shared/CopyLinkButton';
+import { getYouTubeEmbedUrl } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const searchParamsResolved = await searchParams;
 
   if (searchParamsResolved.entryId) {
-    const entryId = String(searchParamsResolved.entryId);
+    const entryId = decodeURIComponent(String(searchParamsResolved.entryId));
 
     try {
       const entry = await getEntryByIdFromDatabase(entryId);
@@ -114,7 +117,7 @@ export default async function ExiconPage({ searchParams }: { searchParams: Promi
 
   // If entryId is provided, fetch that specific entry
   if (searchParamsResolved.entryId) {
-    const entryId = String(searchParamsResolved.entryId);
+    const entryId = decodeURIComponent(String(searchParamsResolved.entryId));
     try {
       const entry = await getEntryByIdFromDatabase(entryId);
       if (entry && entry.type === 'exicon') {
@@ -196,6 +199,8 @@ export default async function ExiconPage({ searchParams }: { searchParams: Promi
 
   // If we have a selected entry, show it instead of the list
   if (selectedEntry) {
+    const embedUrl = selectedEntry.videoLink ? getYouTubeEmbedUrl(selectedEntry.videoLink) : null;
+
     return (
       <PageContainer>
         <div className="bg-gray-50 dark:bg-gray-950 min-h-screen p-8">
@@ -212,14 +217,43 @@ export default async function ExiconPage({ searchParams }: { searchParams: Promi
                 <h3 className="text-xl font-semibold mb-2">Description</h3>
                 <p className="text-gray-700 dark:text-gray-300 mb-6">{selectedEntry.description}</p>
 
+                <div className="space-y-3 mb-6">
+                  {embedUrl ? (
+                    <>
+                      <div className="aspect-video">
+                        <iframe
+                          width="100%"
+                          height="100%"
+                          src={embedUrl}
+                          title={`YouTube video player for ${selectedEntry.name}`}
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                          className="rounded-md shadow-md"
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <CopyLinkButton videoLink={selectedEntry.videoLink ?? ""} />
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={selectedEntry.videoLink || '#'} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="mr-2 h-4 w-4" /> Open Original Video
+                          </Link>
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No video available for this exercise.</p>
+                  )}
+                </div>
+
                 {selectedEntry.tags && selectedEntry.tags.length > 0 && (
                   <div className="mb-6">
                     <h3 className="text-xl font-semibold mb-2">Tags</h3>
                     <div className="flex flex-wrap gap-2">
                       {selectedEntry.tags.map(tag => (
-                        <span key={tag.id} className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                        <Badge key={tag.id} variant="secondary" className="font-normal">
                           {tag.name}
-                        </span>
+                        </Badge>
                       ))}
                     </div>
                   </div>

@@ -15,7 +15,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   const searchParamsResolved = await searchParams;
 
   if (searchParamsResolved.entryId) {
-    const entryId = String(searchParamsResolved.entryId);
+    const entryId = decodeURIComponent(String(searchParamsResolved.entryId));
 
     try {
       const entry = await getEntryByIdFromDatabase(entryId);
@@ -93,7 +93,7 @@ export default async function LexiconPage({ searchParams }: { searchParams: Prom
 
   // If entryId is provided, fetch that specific entry
   if (searchParamsResolved.entryId) {
-    const entryId = String(searchParamsResolved.entryId);
+    const entryId = decodeURIComponent(String(searchParamsResolved.entryId));
     try {
       const entry = await getEntryByIdFromDatabase(entryId);
       if (entry && entry.type === 'lexicon') {
