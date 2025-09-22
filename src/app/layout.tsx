@@ -66,7 +66,7 @@ export default function RootLayout({
                 lastHeight = height;
                 window.parent.postMessage({
                   type: 'frameHeight',
-                  frameHeight: height
+                  data: height
                 }, "https://f3nation.com");
               }
             }
