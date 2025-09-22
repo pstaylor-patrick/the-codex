@@ -26,10 +26,10 @@ export function BackButton({ entryType, className }: BackButtonProps) {
   const handleClick = () => {
     if (inIframe) {
       // Navigate the parent window, not the iframe
-      if (window.parent) {
-        window.parent.location.href = backUrl;
-      } else {
-        window.top!.location.href = backUrl;
+      if (window.parent && window.parent.location) {
+        window.parent.location.replace(backUrl);
+      } else if (window.top && window.top.location) {
+        window.top.location.replace(backUrl);
       }
     }
   };
