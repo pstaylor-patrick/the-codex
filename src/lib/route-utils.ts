@@ -2,7 +2,7 @@
  * Determines the appropriate base URL for entry links based on current route
  */
 export function getEntryBaseUrl(entryType: 'exicon' | 'lexicon'): string {
-  // Check if we're on lexicon-2 route
+  // Check if we're on special routes (lexicon-2 or exicon-2)
   if (typeof window !== 'undefined') {
     let currentPath = window.location.pathname;
 
@@ -17,7 +17,7 @@ export function getEntryBaseUrl(entryType: 'exicon' | 'lexicon'): string {
         // If we can't access parent, check the current URL or search params
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('entryId') && window.location.pathname === '/') {
-          // We might be on the root path but serving lexicon-2 content
+          // We might be on the root path but serving special route content
           // Check the referrer or other indicators
           currentPath = window.location.pathname;
         }
@@ -26,6 +26,9 @@ export function getEntryBaseUrl(entryType: 'exicon' | 'lexicon'): string {
 
     if (currentPath.startsWith('/lexicon-2')) {
       return entryType === 'lexicon' ? 'lexicon-2' : 'exicon';
+    }
+    if (currentPath.startsWith('/exicon-2')) {
+      return entryType === 'exicon' ? 'exicon-2' : 'lexicon';
     }
   }
 
@@ -70,6 +73,8 @@ export function getBackUrl(entryType: 'exicon' | 'lexicon'): string {
         const parentUrl = window.parent.location.href;
         if (parentUrl.includes('/lexicon-2')) {
           baseRoute = entryType === 'lexicon' ? 'lexicon-2' : 'exicon';
+        } else if (parentUrl.includes('/exicon-2')) {
+          baseRoute = entryType === 'exicon' ? 'exicon-2' : 'lexicon';
         } else if (parentUrl.includes('/lexicon')) {
           baseRoute = 'lexicon';
         } else if (parentUrl.includes('/exicon')) {
@@ -88,6 +93,8 @@ export function getBackUrl(entryType: 'exicon' | 'lexicon'): string {
       const currentPath = window.location.pathname;
       if (currentPath.startsWith('/lexicon-2')) {
         baseRoute = entryType === 'lexicon' ? 'lexicon-2' : 'exicon';
+      } else if (currentPath.startsWith('/exicon-2')) {
+        baseRoute = entryType === 'exicon' ? 'exicon-2' : 'lexicon';
       }
     }
 
