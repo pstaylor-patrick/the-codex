@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,10 +16,15 @@ import { MentionTextArea } from '@/components/shared/MentionTextArea';
 
 export function SubmissionForm() {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+
+  // Get the default entry type from URL parameter, fallback to 'exicon'
+  const defaultEntryType = searchParams.get('type') === 'lexicon' ? 'lexicon' : 'exicon';
+
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [aliases, setAliases] = useState('');
-  const [entryType, setEntryType] = useState<'exicon' | 'lexicon'>('exicon');
+  const [entryType, setEntryType] = useState<'exicon' | 'lexicon'>(defaultEntryType);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [videoLink, setVideoLink] = useState('');
   const [submitterName, setSubmitterName] = useState('');
@@ -55,7 +61,7 @@ export function SubmissionForm() {
     setName('');
     setDescription('');
     setAliases('');
-    setEntryType('exicon');
+    setEntryType(defaultEntryType);
     setSelectedTagIds([]);
     setVideoLink('');
     setSubmitterName('');

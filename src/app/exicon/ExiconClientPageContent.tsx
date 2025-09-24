@@ -114,7 +114,7 @@ export const ExiconClientPageContent = ({ initialEntries, allTags }: ExiconClien
         <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center">
           <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search exercises by name or alias..." />
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-            <Link href="/submit" passHref>
+            <Link href="/submit?type=exicon" passHref>
               <Button
                 variant="outline"
                 className="w-full sm:w-auto"
