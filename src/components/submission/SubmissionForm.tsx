@@ -141,6 +141,20 @@ export function SubmissionForm() {
           <hr />
 
           <div className="space-y-2">
+            <Label>Entry Type <span className="text-destructive">*</span></Label>
+            <RadioGroup value={entryType} onValueChange={(newVal) => setEntryType(newVal as 'exicon' | 'lexicon')} className="flex space-x-4 pt-1">
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="exicon" id="type-exicon-submit" />
+                <Label htmlFor="type-exicon-submit" className="font-normal">Exicon (Exercise)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="lexicon" id="type-lexicon-submit" />
+                <Label htmlFor="type-lexicon-submit" className="font-normal">Lexicon (Term)</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="name">Entry Name <span className="text-destructive">*</span></Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
@@ -160,19 +174,6 @@ export function SubmissionForm() {
           <div className="space-y-2">
             <Label htmlFor="aliases">Aliases (comma-separated)</Label>
             <Input id="aliases" value={aliases} onChange={(e) => setAliases(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Entry Type <span className="text-destructive">*</span></Label>
-            <RadioGroup value={entryType} onValueChange={(newVal) => setEntryType(newVal as 'exicon' | 'lexicon')} className="flex space-x-4 pt-1">
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="exicon" id="type-exicon-submit" />
-                <Label htmlFor="type-exicon-submit" className="font-normal">Exicon (Exercise)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="lexicon" id="type-lexicon-submit" />
-                <Label htmlFor="type-lexicon-submit" className="font-normal">Lexicon (Term)</Label>
-              </div>
-            </RadioGroup>
           </div>
 
           {entryType === 'exicon' && (
