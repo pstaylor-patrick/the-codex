@@ -8,6 +8,8 @@ export const metadata = {
   description: 'Submit new entries or suggest edits for the F3 Exicon and Lexicon.',
 };
 
+export const dynamic = 'force-dynamic';
+
 // This page is now a server component by default and can fetch data.
 // However, SubmissionForm is a client component that fetches its own tags.
 export default function SubmitPage() {
