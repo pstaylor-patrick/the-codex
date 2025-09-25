@@ -14,7 +14,7 @@ import type { Tag, NewEntrySuggestionData, NewUserSubmission } from '@/lib/types
 
 import { MentionTextArea } from '@/components/shared/MentionTextArea';
 
-export function SubmissionForm() {
+export function SubmissionFormContent() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
 

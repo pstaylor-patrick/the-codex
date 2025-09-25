@@ -1,14 +1,11 @@
-import { Suspense } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
-import { SubmissionForm } from '@/components/submission/SubmissionForm';
+import { SubmissionForm } from '@/components/submission/SubmissionFormWrapper';
 import { FilePlus2 } from 'lucide-react';
 
 export const metadata = {
   title: 'Submit Entry - F3 Codex',
   description: 'Submit new entries or suggest edits for the F3 Exicon and Lexicon.',
 };
-
-export const dynamic = 'force-dynamic';
 
 // This page is now a server component by default and can fetch data.
 // However, SubmissionForm is a client component that fetches its own tags.
@@ -22,9 +19,7 @@ export default function SubmitPage() {
           Help grow the F3 Codex! Your contributions are valuable.
         </p>
       </div>
-      <Suspense fallback={<div>Loading form...</div>}>
-        <SubmissionForm />
-      </Suspense>
+      <SubmissionForm />
     </PageContainer>
   );
 }
