@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { SubmissionForm } from '@/components/submission/SubmissionForm';
 import { FilePlus2 } from 'lucide-react';
@@ -19,7 +20,9 @@ export default function SubmitPage() {
           Help grow the F3 Codex! Your contributions are valuable.
         </p>
       </div>
-      <SubmissionForm />
+      <Suspense fallback={<div>Loading form...</div>}>
+        <SubmissionForm />
+      </Suspense>
     </PageContainer>
   );
 }
